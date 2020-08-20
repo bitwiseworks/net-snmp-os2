@@ -82,7 +82,7 @@ for i in $test_modules
   fi
 done
 
-new_module_list=`(echo $new_module_list | tr ' ' '\n' | sort | tr '\n' ' '; echo '') | $SED 's/ $//'`
+new_module_list=`(echo $new_module_list | tr ' ' '\r\n' | sort | tr '\r\n' ' '; echo '') | $SED 's/ $//'`
 
 AC_MSG_RESULT([$new_module_list.])
 
@@ -132,7 +132,7 @@ MODULE_LIST=mk/MODULE_LIST.mk
 #   (modules may add new modules, and until all dependencies are done...)
 #
 while test "x$new_module_list" != "x"; do
-  AC_MSG_MODULE_DBG(-e,"\n****************************************************************")
+  AC_MSG_MODULE_DBG("\n****************************************************************")
   AC_MSG_MODULE_DBG("nml: $new_module_list")
 
   #---------------------
@@ -173,7 +173,7 @@ while test "x$new_module_list" != "x"; do
     for i in $module_sublist
     do
 
-    AC_MSG_MODULE_DBG(-e "\n================================================================")
+    AC_MSG_MODULE_DBG("\n================================================================")
     AC_MSG_MODULE_DBG("testing $i")
     need_header=0
 
@@ -522,21 +522,21 @@ while test "x$new_module_list" != "x"; do
           saved_sublist_code="$saved_sublist_code $i"
         fi
         mnm=`echo $i | $SED 's/.*\///;s/\.c$//;'`
-        AC_MSG_MODULE_DBG(-e "\nchecking '$srcdir/$mibdir/$i.c' ($mnm/`basename $i`) C file for init/shutdown")
+        AC_MSG_MODULE_DBG("\nchecking '$srcdir/$mibdir/$i.c' ($mnm/`basename $i`) C file for init/shutdown")
         if test "x$mnm" != "x`basename $i`"; then
            AC_MSG_WARN([mib module error])
 	   AC_MSG_ERROR([conflicting names: $mnm != `basename $i`])
         fi
         temp_init=`$GREP init_$mnm $srcdir/$mibdir/$i.c | $GREP -v _init_$mnm`
 	if test "x$temp_init" != "x"; then
-            AC_MSG_MODULE_DBG(-e "adding init_$mnm() to list")
+            AC_MSG_MODULE_DBG("adding init_$mnm() to list")
             need_header=1
 	    echo "  if (should_init(\"$mnm\")) init_$mnm();" >> $output_inits
 	fi
 	$GREP shutdown_$mnm $srcdir/$mibdir/$i.c > /dev/null
         if test $? -eq 0 ; then
             if test $module_debug -eq 1; then
-              echo -e "\nadding shutdown_$mnm() to list"
+              echo "\nadding shutdown_$mnm() to list"
             fi
             need_header=1
 	    echo "  if (should_init(\"$mnm\")) shutdown_$mnm();" >> $mibdir/${module_type}_shutdown.h
@@ -735,7 +735,7 @@ done
 changequote([, ])
 
 if test $module_debug -eq 1; then
-   echo -e "\nFinal module list: $module_list_code"
+   echo "\nFinal module list: $module_list_code"
    exit
 fi
 if test "x$with_mib_cfg_checks" = "xyes"; then
@@ -792,7 +792,7 @@ if test "x$NETSNMP_DEFAULT_MIBS" = "x"; then
 fi
 if test "x$ENV_SEPARATOR" != "x"; then
   :
-elif test "x$PARTIALTARGETOS" = "xmingw32" -o "x$PARTIALTARGETOS" = "xmingw32msvc" -o "x$PARTIALTARGETOS" = "xcygwin"; then
+elif test "x$PARTIALTARGETOS" = "xmingw32" -o "x$PARTIALTARGETOS" = "xmingw32msvc" -o "x$PARTIALTARGETOS" = "xcygwin" -o "x$PARTIALTARGETOS" = "xos2"; then
   # mingw32 and cygwin use ';' as the default environment variable separator
   ENV_SEPARATOR=";"
   NETSNMP_DEFAULT_MIBS=`echo "$NETSNMP_DEFAULT_MIBS" | $SED 's/:/;/g'`
