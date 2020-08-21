@@ -24,7 +24,9 @@ netsnmp_feature_require(cert_util)
 netsnmp_feature_require(sockaddr_size)
 
 #include <net-snmp/library/snmpDTLSUDPDomain.h>
+#ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
 #include <net-snmp/library/snmpUDPIPv6Domain.h>
+#endif
 #include <net-snmp/library/snmp_assert.h>
 
 #include <stdio.h>
@@ -1604,7 +1606,9 @@ netsnmp_transport *
 netsnmp_dtlsudp_create_ostring(const void *o, size_t o_len, int local)
 {
     struct sockaddr_in sin;
+#ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     struct sockaddr_in6 sin6;
+#endif
 
     if (netsnmp_ipv4_ostring_to_sockaddr(&sin, o, o_len))
         return netsnmp_dtlsudp_transport(&sin, local);

@@ -60,6 +60,10 @@
 
 #include "inet_ntop.h"
 
+#ifdef __OS2__
+#include <libcx/net.h>
+#endif
+
 /* XXX */
 #define INETADDRESSTYPE_IPV4    1
 #define INETADDRESSTYPE_IPV6    2
@@ -168,7 +172,11 @@ const char *
 inetaddresstop(u_char *addr, int addrlen, int addrtype)
 {
     int type;
+#ifdef __OS2__
+    static char buf[INET_ADDRSTRLEN];
+#else
     static char buf[INET6_ADDRSTRLEN];
+#endif
 
     switch (addrtype) {
     case INETADDRESSTYPE_IPV4:

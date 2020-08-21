@@ -541,6 +541,7 @@ p_rtnodex( struct route_entry *rp )
                     routexname(&rp->dst) :
                     netxname(&rp->dst, rp->mask)));
     }
+#ifndef __OS2__
     else if (rp->af == AF_INET6) {
         struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&rp->dst;
         struct in6_addr in6_addr_any = IN6ADDR_ANY_INIT;
@@ -551,6 +552,7 @@ p_rtnodex( struct route_entry *rp )
                     routexname(&rp->dst) :
                     netxname(&rp->dst, rp->mask)));
     }
+#endif
     printf("%-*s %-6.6s  %s",
         WID_GW(rp->af),
         1 ? routexname(&rp->hop) : "*",

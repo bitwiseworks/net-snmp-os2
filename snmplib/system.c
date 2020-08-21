@@ -141,6 +141,10 @@ SOFTWARE.
 #include <sys/pstat.h>
 #endif
 
+#if defined(__OS2__)
+#include <libcx/net.h>
+#endif
+
 #if HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
 #endif
