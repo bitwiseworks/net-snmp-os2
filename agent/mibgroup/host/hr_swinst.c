@@ -222,7 +222,11 @@ init_hr_swinst(void)
         rpmReadConfigFiles(NULL, NULL);
         swi->swi_dbpath = rpmGetPath("%{_dbpath}", NULL);
 #else
+#ifdef __OS2__
+        swi->swi_dbpath = "/@unixroot/var/lib/rpm";  /* Most likely */
+#else
         swi->swi_dbpath = "/var/lib/rpm";  /* Most likely */
+#endif
 #endif
         if (swi->swi_directory != NULL)
             free(swi->swi_directory);

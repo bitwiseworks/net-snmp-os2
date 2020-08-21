@@ -32,7 +32,11 @@
 #define MAXPATHLEN 2048
 #endif
 
+#ifdef __OS2__
+#define DEFAULT_SOCK_PATH "/@unxroot/var/net-snmp/sshdomainsocket"
+#else
 #define DEFAULT_SOCK_PATH "/var/net-snmp/sshdomainsocket"
+#endif
 
 #define NETSNMP_SSHTOSNMP_VERSION_NUMBER 1
 
@@ -50,7 +54,11 @@ FILE *debf = NULL;
 static void
 deb(const char *string) {
     if (NULL == debf) {
+#ifdef __OS2__
+        debf = fopen("/@unixroot/tmp/sshtosnmp.log", "a");
+#else
         debf = fopen("/tmp/sshtosnmp.log", "a");
+#endif
     }
     if (NULL != debf) {
         fprintf(debf, "%s\n", string);

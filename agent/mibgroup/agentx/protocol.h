@@ -13,7 +13,11 @@ extern          "C" {
 
 #define AGENTX_PORT	705
 #ifndef NETSNMP_AGENTX_SOCKET
+#ifdef __OS2__
+#define NETSNMP_AGENTX_SOCKET	"/@unixroot/var/agentx/master"
+#else
 #define NETSNMP_AGENTX_SOCKET	"/var/agentx/master"
+#endif
 #endif
 
     /*

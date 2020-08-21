@@ -69,7 +69,11 @@ netsnmp_swinst_arch_init(void)
     rpmdbpath = rpmGetPath( "%{_dbpath}", NULL );
     dbpath = rpmdbpath;
 #else
+#ifdef __OS2__
+    dbpath = "/@unixroot/var/lib/rpm";   /* Most likely */
+#else
     dbpath = "/var/lib/rpm";   /* Most likely */
+#endif
 #endif
 
     snprintf( pkg_directory, SNMP_MAXPATH, "%s/Packages", dbpath );
