@@ -4910,7 +4910,7 @@ add_mibdir(const char *dirname)
     char            tmpstr[300];
     int             count = 0;
     int             fname_len = 0;
-#if !(defined(WIN32) || defined(cygwin))
+#if !(defined(WIN32) || defined(cygwin) || defined(__OS2__))
     char           *token;
     char space;
     char newline;
@@ -4919,7 +4919,7 @@ add_mibdir(const char *dirname)
 #endif
 
     DEBUGMSGTL(("parse-mibs", "Scanning directory %s\n", dirname));
-#if !(defined(WIN32) || defined(cygwin))
+#if !(defined(WIN32) || defined(cygwin) || defined(__OS2__))
     token = netsnmp_mibindex_lookup( dirname );
     if (token && stat(token, &idx_stat) == 0 && stat(dirname, &dir_stat) == 0) {
         if (dir_stat.st_mtime < idx_stat.st_mtime) {

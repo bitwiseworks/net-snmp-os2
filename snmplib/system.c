@@ -1246,7 +1246,7 @@ mkdirhier(const char *pathname, mode_t mode, int skiplast)
     if (!buf)
         goto out;
 
-#if defined (WIN32) || defined (cygwin)
+#if defined (WIN32) || defined (cygwin) || defined(__OS2__)
     /* convert backslash to forward slash */
     for (entry = ourcopy; *entry; entry++)
         if (*entry == '\\')
@@ -1257,7 +1257,7 @@ mkdirhier(const char *pathname, mode_t mode, int skiplast)
 
     buf[0] = '\0';
 
-#if defined (WIN32) || defined (cygwin)
+#if defined (WIN32) || defined (cygwin) || defined(__OS2__)
     /*
      * Check if first entry contains a drive-letter
      *   e.g  "c:/path"
