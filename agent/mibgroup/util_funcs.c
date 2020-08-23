@@ -103,6 +103,10 @@
 #define setPerrorstatus(x) snmp_log_perror(x)
 #endif
 
+#ifdef __OS2__
+#define pipe(A) socketpair(AF_UNIX, SOCK_STREAM,0, A)
+#endif
+
 netsnmp_feature_child_of(util_funcs, libnetsnmpmibs)
 
 netsnmp_feature_child_of(shell_command, util_funcs)

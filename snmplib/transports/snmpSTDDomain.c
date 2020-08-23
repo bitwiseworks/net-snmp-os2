@@ -29,6 +29,10 @@
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/tools.h>
 
+#ifdef __OS2__
+#define pipe(A) socketpair(AF_UNIX, SOCK_STREAM,0, A)
+#endif
+
 oid netsnmp_snmpSTDDomain[] = { TRANSPORT_DOMAIN_STD_IP };
 static netsnmp_tdomain stdDomain;
 

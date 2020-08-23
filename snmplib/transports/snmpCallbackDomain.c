@@ -51,6 +51,10 @@
 #define NETSNMP_STREAM_QUEUE_LEN  5
 #endif
 
+#ifdef __OS2__
+#define pipe(A) socketpair(AF_UNIX, SOCK_STREAM,0, A)
+#endif
+
 #ifdef NETSNMP_TRANSPORT_CALLBACK_DOMAIN
 
 static netsnmp_transport_list *trlist = NULL;
