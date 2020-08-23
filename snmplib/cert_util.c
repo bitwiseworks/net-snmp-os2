@@ -1365,7 +1365,7 @@ _cert_read_index(const char *dirname, struct stat *dirstat)
         return -1;
     }
 
-#if (defined(WIN32) || defined(cygwin) || defined(__OS2__)
+#if (defined(WIN32) || defined(cygwin) || defined(__OS2__))
     /* For Win32 platforms, the directory does not maintain a last modification
      * date that we can compare with the modification date of the .index file.
      */
