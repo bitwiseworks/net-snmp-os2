@@ -27,7 +27,11 @@
 #include "dlmod.h"
 
 #ifndef SNMPDLMODPATH
+#ifdef __OS2__
+#define SNMPDLMODPATH "/@unixroot/usr/local/lib/snmp/dlmod"
+#else
 #define SNMPDLMODPATH "/usr/local/lib/snmp/dlmod"
+#endif
 #endif
 
 struct dlmod {
@@ -104,7 +108,7 @@ typedef int (__stdcall *dl_function_ptr)(void);
 typedef int (*dl_function_ptr)(void);
 #endif
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(__OS2__)
 static const char dlmod_dl_suffix[] = "dll";
 #else
 static const char dlmod_dl_suffix[] = "so";
@@ -171,7 +175,7 @@ static const char *dlmod_dlerror(void)
 
 static int dlmod_is_abs_path(const char *path)
 {
-#if defined(WIN32)
+#if defined(WIN32) || defined(__OS2__)
     return (strncmp(path, "//", 2) == 0 || strncmp(path, "\\\\", 2) == 0) ||
         (isalpha((u_char)path[0]) && path[1] == ':' &&
          (path[2] == '/' || path[2] == '\\'));
@@ -229,11 +233,21 @@ dlmod_load_module(struct dlmod *dlm)
             return;
     }
     {
+#ifdef __OS2__
+        char sym_init[64 + sizeof("_init_")];
+#else
         char sym_init[64 + sizeof("init_")];
+#endif
         dl_function_ptr dl_init;
 
         snprintf(sym_init, sizeof(sym_init), "init_%s", dlm->name);
         dl_init = dlmod_dlsym(dlm->handle, sym_init);
+#ifdef __OS2__
+        if (!dl_init) {
+            snprintf(sym_init, sizeof(sym_init), "_init_%s", dlm->name);
+            dl_init = dlmod_dlsym(dlm->handle, sym_init);
+        }
+#endif
         if (dl_init == NULL) {
             dlmod_dlclose(dlm->handle);
             free(dlm->error);
@@ -253,7 +267,11 @@ dlmod_load_module(struct dlmod *dlm)
 static void
 dlmod_unload_module(struct dlmod *dlm)
 {
+#ifdef __OS2__
+    char            sym_deinit[64 + sizeof("_shutdown_")];
+#else
     char            sym_deinit[64 + sizeof("shutdown_")];
+#endif
     dl_function_ptr dl_deinit;
 
     if (!dlm || dlm->status != DLMOD_LOADED)
@@ -261,10 +279,22 @@ dlmod_unload_module(struct dlmod *dlm)
 
     snprintf(sym_deinit, sizeof(sym_deinit), "deinit_%s", dlm->name);
     dl_deinit = dlmod_dlsym(dlm->handle, sym_deinit);
+#ifdef __OS2__
+    if (!dl_deinit) {
+        snprintf(sym_deinit, sizeof(sym_deinit), "_deinit_%s", dlm->name);
+        dl_deinit = dlmod_dlsym(dlm->handle, sym_deinit);
+    }
+#endif
     if (!dl_deinit) {
         snprintf(sym_deinit, sizeof(sym_deinit), "shutdown_%s", dlm->name);
         dl_deinit = dlmod_dlsym(dlm->handle, sym_deinit);
     }
+#ifdef __OS2__
+    if (!dl_deinit) {
+        snprintf(sym_deinit, sizeof(sym_deinit), "_shutdown_%s", dlm->name);
+        dl_deinit = dlmod_dlsym(dlm->handle, sym_deinit);
+    }
+#endif
     if (dl_deinit) {
         DEBUGMSGTL(("dlmod", "Calling %s()\n", sym_deinit));
         dl_deinit();
