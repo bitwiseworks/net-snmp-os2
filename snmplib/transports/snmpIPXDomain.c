@@ -7,26 +7,22 @@
 #include <ctype.h>
 #include <errno.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
-#endif
-
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -483,7 +479,6 @@ netsnmp_ipx_ctor(void)
     ipxDomain.prefix = (const char**)calloc(2, sizeof(char *));
     ipxDomain.prefix[0] = "ipx";
 
-    ipxDomain.f_create_from_tstring     = NULL;
     ipxDomain.f_create_from_tstring_new = netsnmp_ipx_create_tstring;
     ipxDomain.f_create_from_ostring     = netsnmp_ipx_create_ostring;
 

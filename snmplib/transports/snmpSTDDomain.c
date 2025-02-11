@@ -7,20 +7,16 @@
 #include <signal.h>
 #include <errno.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -240,14 +236,9 @@ netsnmp_std_transport(const char *instring, size_t instring_len,
             close(outfd[0]);
             close(outfd[1]);
 
-            /* call exec */
-            system(instring);
+            NETSNMP_IGNORE_RESULT(system(instring));
             /* XXX: TODO: use exec form instead; needs args */
             /* execv(instring, NULL); */
-            exit(0);
-
-            /* ack...  we should never ever get here */
-            snmp_log(LOG_ERR, "STD transport returned after execv()\n");
         }
     }            
 
@@ -275,7 +266,6 @@ netsnmp_std_ctor(void)
     stdDomain.prefix = (const char **)calloc(2, sizeof(char *));
     stdDomain.prefix[0] = "std";
 
-    stdDomain.f_create_from_tstring     = NULL;
     stdDomain.f_create_from_tstring_new = netsnmp_std_create_tstring;
     stdDomain.f_create_from_ostring     = netsnmp_std_create_ostring;
 

@@ -16,10 +16,10 @@
 #include <net-snmp/net-snmp-features.h>
 
 #include <sys/types.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -49,7 +49,7 @@
 #endif
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*

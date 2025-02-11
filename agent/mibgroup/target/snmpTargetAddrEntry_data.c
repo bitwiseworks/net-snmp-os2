@@ -11,7 +11,7 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -24,6 +24,8 @@
 
 #include "snmpTargetAddrEntry_data.h"
 #include "util_funcs/header_generic.h"
+
+netsnmp_feature_require(container_compare_mem);
 
 static struct targetAddrTable_struct *aAddrTable = NULL;
 static int _active = 0;
@@ -94,8 +96,7 @@ snmpTargetAddrTable_dispose(struct targetAddrTable_struct *reaped)
 
     if (reaped->sess)
         snmp_close(reaped->sess);
-    else
-        SNMP_FREE(reaped->tAddress);
+    SNMP_FREE(reaped->tAddress);
     SNMP_FREE(reaped->nameData);
     SNMP_FREE(reaped->tagListData);
     SNMP_FREE(reaped->paramsData);
@@ -312,7 +313,7 @@ store_snmpTargetAddrEntry(int majorID, int minorID, void *serverarg,
                           void *clientarg)
 {
     const struct targetAddrTable_struct *curr_struct;
-    char            line[1024], *cur, *ep = line + sizeof(line);
+    char            line[1024], *ep = line + sizeof(line);
     int             i;
 
     curr_struct = aAddrTable;
@@ -321,6 +322,8 @@ store_snmpTargetAddrEntry(int majorID, int minorID, void *serverarg,
              curr_struct->storageType == SNMP_STORAGE_PERMANENT) &&
             (curr_struct->rowStatus == SNMP_ROW_ACTIVE ||
              curr_struct->rowStatus == SNMP_ROW_NOTINSERVICE)) {
+            char *cur;
+
             cur = line + snprintf(line, sizeof(line), "targetAddr ");
             cur = read_config_save_octet_string(
                  cur, (const u_char*)curr_struct->nameData,
@@ -333,12 +336,11 @@ store_snmpTargetAddrEntry(int majorID, int minorID, void *serverarg,
             *cur++ = ' ';
             cur = read_config_save_octet_string(
                 cur, curr_struct->tAddress, curr_struct->tAddressLen);
-            cur += snprintf(cur, ep - cur, " %i %i \"%s\" %s %i %i",
-                            curr_struct->timeout,
-                            curr_struct->retryCount, curr_struct->tagListData,
-                            curr_struct->paramsData, curr_struct->storageType,
-                            curr_struct->rowStatus);
-            line[ sizeof(line)-1 ] = 0;
+            snprintf(cur, ep - cur, " %i %i \"%s\" %s %i %i",
+                     curr_struct->timeout,
+                     curr_struct->retryCount, curr_struct->tagListData,
+                     curr_struct->paramsData, curr_struct->storageType,
+                     curr_struct->rowStatus);
 
             /*
              * store to file
@@ -643,9 +645,11 @@ snmpd_parse_config_targetAddr(const char *token, char *char_ptr)
         bptr += snprintf(bptr, buff + sizeof(buff) - bptr,
                          ".%d", (int) newEntry->tDomain[i]);
     }
+    for (i = 0; i < newEntry->tAddressLen; i++)
+        bptr += snprintf(bptr, buff + sizeof(buff) - bptr, " %02x",
+                         ((u_char *)newEntry->tAddress)[i]);
     bptr += snprintf(bptr, buff + sizeof(buff) - bptr,
-                     " %s %d %d %s %s %d %d\n",
-                     newEntry->tAddress, newEntry->timeout,
+                     " %d %d %s %s %d %d\n", newEntry->timeout,
                      newEntry->retryCount, newEntry->tagListData,
                      newEntry->paramsData, newEntry->storageType,
                      newEntry->rowStatus);

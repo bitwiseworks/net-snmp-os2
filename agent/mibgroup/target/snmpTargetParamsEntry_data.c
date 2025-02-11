@@ -10,7 +10,7 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -22,6 +22,8 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #include "snmpTargetParamsEntry_data.h"
+
+netsnmp_feature_require(container_compare_mem);
 
 static struct targetParamTable_struct *aPTable = NULL;
 static int _active = 0;

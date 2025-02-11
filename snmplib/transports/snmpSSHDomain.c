@@ -14,36 +14,33 @@
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#if HAVE_SYS_UN_H
+#ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if HAVE_FCNTL_H
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
-#endif
 #include <pwd.h>
 
 #ifndef MAXPATHLEN
@@ -62,7 +59,7 @@
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/read_config.h>
 
-netsnmp_feature_require(user_information)
+netsnmp_feature_require(user_information);
 
 #define MAX_NAME_LENGTH 127
 
@@ -983,7 +980,6 @@ netsnmp_ssh_ctor(void)
     sshDomain.prefix = (const char **)calloc(2, sizeof(char *));
     sshDomain.prefix[0] = "ssh";
 
-    sshDomain.f_create_from_tstring     = NULL;
     sshDomain.f_create_from_tstring_new = netsnmp_ssh_create_tstring;
     sshDomain.f_create_from_ostring     = netsnmp_ssh_create_ostring;
 

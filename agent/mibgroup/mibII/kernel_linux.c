@@ -8,11 +8,11 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #endif
 #include <sys/types.h>
-#if HAVE_SYS_PARAM_H
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 #include <errno.h>
@@ -179,9 +179,9 @@ static const struct stats_descr ipv4_snmp_stats[] = {
 #define ICMP6_STATS_PREFIX_LEN	5
 #define UDP6_STATS_PREFIX_LEN   4
 
-netsnmp_feature_child_of(linux_ip6_stat_all, libnetsnmpmibs)
+netsnmp_feature_child_of(linux_ip6_stat_all, libnetsnmpmibs);
 
-netsnmp_feature_child_of(linux_read_ip6_stat, linux_ip6_stat_all)
+netsnmp_feature_child_of(linux_read_ip6_stat, linux_ip6_stat_all);
 
 static int
 decode_icmp_msg(char *line, char *data, struct icmp4_msg_mib *msg)

@@ -21,7 +21,7 @@
 
 #include "ipaddress_ioctl.h"
 
-netsnmp_feature_child_of(ipadress_ioctl_entry_copy, ipaddress_common)
+netsnmp_feature_child_of(ipadress_ioctl_entry_copy, ipaddress_common);
 
 static void _print_flags(short flags);
 
@@ -172,6 +172,12 @@ _netsnmp_ioctl_ipaddress_container_load_v4(netsnmp_container *container,
             continue;
         }
 
+        if (!netsnmp_access_interface_include(ifrp->ifr_name))
+            continue;
+
+	if (netsnmp_access_interface_max_reached(ifrp->ifr_name))
+            /* we may need to stop tracking ifaces if a max was set */
+            continue;
         /*
          */
         entry = netsnmp_access_ipaddress_entry_create();
@@ -238,7 +244,7 @@ _netsnmp_ioctl_ipaddress_container_load_v4(netsnmp_container *container,
          * get broadcast
          */
         memset(&addr_info, 0, sizeof(struct address_flag_info));
-#if defined (NETSNMP_ENABLE_IPV6)
+#if defined (NETSNMP_ENABLE_IPV6) && defined(HAVE_LINUX_RTNETLINK_H)
         addr_info = netsnmp_access_other_info_get(entry->if_index, AF_INET);
         if(addr_info.bcastflg) {
            bcastentry = netsnmp_access_ipaddress_entry_create();
@@ -279,6 +285,7 @@ _netsnmp_ioctl_ipaddress_container_load_v4(netsnmp_container *container,
         if (ioctl(sd, SIOCGIFFLAGS, ifrp) < 0) {
             snmp_log(LOG_ERR,
                      "error getting if_flags for interface %d\n", i);
+            netsnmp_access_ipaddress_entry_free(bcastentry);
             netsnmp_access_ipaddress_entry_free(entry);
             continue;
         }
@@ -492,9 +499,8 @@ _netsnmp_ioctl_ipaddress_set_v4(netsnmp_ipaddress_entry * entry)
          * search for unused alias
          */
         alias_idx = _next_alias(name);
-        snprintf(ifrq.ifr_name,sizeof(ifrq.ifr_name), "%s:%d",
+        snprintf(ifrq.ifr_name, sizeof(ifrq.ifr_name), "%s:%d",
                  name, alias_idx);
-        ifrq.ifr_name[sizeof(ifrq.ifr_name) - 1] = 0;
     }
     else
         strlcpy(ifrq.ifr_name, (char *) extras->name, sizeof(ifrq.ifr_name));

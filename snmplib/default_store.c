@@ -128,26 +128,23 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 #include <sys/types.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -158,9 +155,9 @@
 
 #include <net-snmp/library/snmp_api.h>
 
-netsnmp_feature_child_of(default_store_all, libnetsnmp)
+netsnmp_feature_child_of(default_store_all, libnetsnmp);
 
-netsnmp_feature_child_of(default_store_void, default_store_all)
+netsnmp_feature_child_of(default_store_void, default_store_all);
 
 #ifndef NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID
 #endif /* NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID */

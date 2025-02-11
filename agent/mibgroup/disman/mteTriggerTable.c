@@ -9,10 +9,10 @@
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -21,12 +21,12 @@
 #include <limits.h>
 #endif
 
-netsnmp_feature_require(mib_snprint_variable)
-netsnmp_feature_require(tdomain_support)
-netsnmp_feature_require(check_vb_uint)
-netsnmp_feature_require(string_time_to_secs)
+netsnmp_feature_require(mib_snprint_variable);
+netsnmp_feature_require(tdomain_support);
+netsnmp_feature_require(check_vb_uint);
+netsnmp_feature_require(string_time_to_secs);
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*

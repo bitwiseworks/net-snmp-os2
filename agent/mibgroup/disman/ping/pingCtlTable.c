@@ -21,10 +21,10 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -36,8 +36,9 @@
 #include <netdb.h>
 #include <netinet/in.h>
 
-#include <sys/types.h>
+#include <linux/param.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 
 #include "pingCtlTable.h"
@@ -73,6 +74,10 @@ static struct proto {
     socklen_t       salen;      /* length of sockaddr{}s */
     int             icmpproto;  /* IPPROTO_xxx value for ICMP */
 } *pr;
+
+static volatile int    exiting;
+static volatile int    status_snapshot;
+
 
 /*
  *pingCtlTable_variables_oid:
@@ -1123,7 +1128,7 @@ Host_serv(const char *host, const char *serv, int family, int socktype)
     hints.ai_socktype = socktype;       /* 0, SOCK_STREAM, SOCK_DGRAM, etc. */
 
     if ((n = netsnmp_getaddrinfo(host, serv, &hints, &res)) != 0) {
-#if HAVE_GAI_STRERROR
+#ifdef HAVE_GAI_STRERROR
         snmp_log(LOG_ERR, "host_serv error for %s, %s: %s",
                  (host == NULL) ? "(no hostname)" : host,
                  (serv == NULL) ? "(no service name)" : serv,
@@ -1328,7 +1333,8 @@ readloop(struct pingCtlTable_data *item, struct addrinfo *ai, int datalen,
 	snmp_log_perror("pingCtlTable: failed to create socket");
 	return;
     }
-    setuid(getuid());           /* don't need special permissions any more */
+    /* don't need special permissions any more */
+    NETSNMP_IGNORE_RESULT(setuid(getuid()));
 
     tv.tv_sec = 5;
     tv.tv_usec = 0;
@@ -1408,9 +1414,12 @@ proc_v4(char *ptr, ssize_t len, struct timeval *tvrecv, time_t timep,
         ip = (struct ip *) ptr; /* start of IP header */
         hlen1 = ip->ip_hl << 2; /* length of IP header */
 
-        icmp = (struct icmp *) (ptr + hlen1);   /* start of ICMP header */
-        if ((icmplen = len - hlen1) < 8)
+        if ((icmplen = len - hlen1) < 8) {
             DEBUGMSGTL(("pingCtlTable", "icmplen (%d) < 8", icmplen));
+            return SNMP_ERR_BADVALUE;
+        }
+
+        icmp = (struct icmp *) (ptr + hlen1);   /* start of ICMP header */
 
         DEBUGMSGTL(("pingCtlTable", "ICMP type = %d (%sa reply)\n",
                     icmp->icmp_type,
@@ -1422,8 +1431,10 @@ proc_v4(char *ptr, ssize_t len, struct timeval *tvrecv, time_t timep,
                 return SNMP_ERR_NOERROR;
             }
 
-            if (icmplen < 16)
+            if (icmplen < 16) {
                 DEBUGMSGTL(("pingCtlTable", "icmplen (%d) < 16", icmplen));
+                return SNMP_ERR_BADVALUE;
+            }
 
             tvsend = (struct timeval *) icmp->icmp_data;
 
@@ -1812,7 +1823,7 @@ run_ping(unsigned int clientreg, void *clientarg)
         socket_errno = errno;
 
         uid = getuid();
-        setuid(uid);
+        NETSNMP_IGNORE_RESULT(setuid(uid));
 
         source.sin6_family = AF_INET6;
         memset(&firsthop, 0, sizeof(firsthop));
@@ -4610,7 +4621,7 @@ pinger(int icmp_sock, int preload, int cmsglen, char *cmsgbuf,
                  && (*pipesize) < (*screen_width))
                 || in_flight(acked, nreceived, ntransmitted,
                              nerrors) < (*screen_width))
-                write(STDOUT_FILENO, ".", 1);
+                NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, ".", 1));
         }
 
         return interval - tokens;
@@ -4672,7 +4683,7 @@ pinger(int icmp_sock, int preload, int cmsglen, char *cmsgbuf,
 
         if (i == 0 && !(options & F_QUIET)) {
             if (options & F_FLOOD)
-                write(STDOUT_FILENO, "E", 1);
+                NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "E", 1));
             else
                 perror("ping: sendmsg");
         }
@@ -5268,9 +5279,9 @@ gather_statistics(int *series, struct pingCtlTable_data *item, __u8 * ptr,
 
     if (options & F_FLOOD) {
         if (!csfailed)
-            write(STDOUT_FILENO, "\b \b", 3);
+            NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "\b \b", 3));
         else
-            write(STDOUT_FILENO, "\bC", 1);
+            NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "\bC", 1));
     } else {
         int             i;
         __u8           *cp, *dp;
@@ -5592,7 +5603,7 @@ receive_error_msg(int icmp_sock, struct sockaddr_in6 *whereto, int options,
         if (options & F_QUIET)
             goto out;
         if (options & F_FLOOD)
-            write(STDOUT_FILENO, "E", 1);
+            NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "E", 1));
         else if (e->ee_errno != EMSGSIZE)
             snmp_log(LOG_ERR, "ping: local error: %s\n", strerror(e->ee_errno));
         else
@@ -5616,7 +5627,7 @@ receive_error_msg(int icmp_sock, struct sockaddr_in6 *whereto, int options,
         if (options & F_QUIET)
             goto out;
         if (options & F_FLOOD) {
-            write(STDOUT_FILENO, "\bE", 2);
+            NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "\bE", 2));
         } else {
             fflush(stdout);
         }
@@ -5770,7 +5781,7 @@ parse_reply(int *series, struct pingCtlTable_data *item,
                 return 0;
             (*nerrors)++;
             if (options & F_FLOOD) {
-                write(STDOUT_FILENO, "\bE", 2);
+                NETSNMP_IGNORE_RESULT(write(STDOUT_FILENO, "\bE", 2));
                 return 0;
             }
             DEBUGMSGTL(("pingCtlTable", "From %s: icmp_seq=%u ",
