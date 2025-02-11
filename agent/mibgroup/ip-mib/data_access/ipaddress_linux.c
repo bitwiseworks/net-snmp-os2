@@ -19,17 +19,17 @@
 
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 
-netsnmp_feature_require(prefix_info)
-netsnmp_feature_require(find_prefix_info)
+netsnmp_feature_require(prefix_info);
+netsnmp_feature_require(find_prefix_info);
 
-netsnmp_feature_child_of(ipaddress_arch_entry_copy, ipaddress_common)
+netsnmp_feature_child_of(ipaddress_arch_entry_copy, ipaddress_common);
 
 #ifdef NETSNMP_FEATURE_REQUIRE_IPADDRESS_ARCH_ENTRY_COPY
-netsnmp_feature_require(ipaddress_ioctl_entry_copy)
+netsnmp_feature_require(ipaddress_ioctl_entry_copy);
 #endif /* NETSNMP_FEATURE_REQUIRE_IPADDRESS_ARCH_ENTRY_COPY */
 
-#if defined (NETSNMP_ENABLE_IPV6)
 #include <linux/types.h>
 #include <asm/types.h>
 #if defined(HAVE_LINUX_RTNETLINK_H)
@@ -39,7 +39,6 @@ netsnmp_feature_require(ipaddress_ioctl_entry_copy)
 #define SUPPORT_PREFIX_FLAGS 1
 #endif /* RTMGRP_IPV6_PREFIX */
 #endif /* HAVE_LINUX_RTNETLINK_H */
-#endif
 
 #include "ipaddress.h"
 #include "ipaddress_ioctl.h"
@@ -219,7 +218,7 @@ _load_v6(netsnmp_container *container, int idx_offset)
                 "cannot get ip address information"
                 "as netlink socket is not available\n"));
     return -1;
-#else
+#else /* HAVE_LINUX_RTNETLINK_H */
     FILE           *in;
     char            line[80], addr[40];
     char            if_name[IFNAMSIZ+1];/* +1 for '\0' because of the ugly sscanf below */ 
@@ -234,7 +233,18 @@ _load_v6(netsnmp_container *container, int idx_offset)
 
 #define PROCFILE "/proc/net/if_inet6"
     if (!(in = fopen(PROCFILE, "r"))) {
-        snmp_log_perror("ipaddress_linux: could not open " PROCFILE);
+        /*
+         * If opening /proc/net/if_inet6 fails, only complain if that file
+         * does not exist. If it exists but if it is not readable, do not
+         * log an error message because this probably is the result of IPv6
+         * support having been disabled intentionally.
+         */
+        struct stat st;
+
+        if (stat(PROCFILE, &st) == 0) {
+            NETSNMP_LOGONCE((LOG_ERR,
+                             "ipaddress_linux: could not open " PROCFILE));
+        }
         return -2;
     }
 
@@ -262,6 +272,13 @@ _load_v6(netsnmp_container *container, int idx_offset)
         DEBUGMSGTL(("access:ipaddress:container",
                     "addr %s, index %d, pfx %d, scope %d, flags 0x%X, name %s\n",
                     addr, if_index, pfx_len, scope, flags, if_name));
+
+        if (!netsnmp_access_interface_include(if_name))
+            continue;
+
+	if (netsnmp_access_interface_max_reached(if_name))
+            /* we may need to stop tracking ifaces if a max was set */
+            continue;
         /*
          */
         entry = netsnmp_access_ipaddress_entry_create();
@@ -411,8 +428,10 @@ _load_v6(netsnmp_container *container, int idx_offset)
         return rc;
 
     return idx_offset;
+#endif /* HAVE_LINUX_RTNETLINK_H */
 }
 
+#ifdef HAVE_LINUX_RTNETLINK_H
 struct address_flag_info
 netsnmp_access_other_info_get(int index, int family)
 {
@@ -500,10 +519,8 @@ netsnmp_access_other_info_get(int index, int family)
 out:
     close(sd);
     return addr;
-#endif
 }
 
-#ifdef HAVE_LINUX_RTNETLINK_H
 int
 netsnmp_access_ipaddress_extra_prefix_info(int index, u_long *preferedlt,
                                            ulong *validlt, char *addr)
@@ -527,6 +544,8 @@ netsnmp_access_ipaddress_extra_prefix_info(int index, u_long *preferedlt,
     int                  rtattrlen;
     int                  sd;
     int                  reqaddr = 0;
+    int                  ret = -1;
+
     sd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
     if(sd < 0) {
        snmp_log(LOG_ERR, "could not open netlink socket\n");
@@ -543,16 +562,16 @@ netsnmp_access_ipaddress_extra_prefix_info(int index, u_long *preferedlt,
     status = send (sd, &req, req.nlhdr.nlmsg_len, 0);
     if (status < 0) {
         snmp_log(LOG_ERR, "could not send netlink request\n");
-        return -1;
+        goto out;
     }
     status = recv (sd, buf, sizeof(buf), 0);
     if (status < 0) {
         snmp_log (LOG_ERR, "could not recieve netlink request\n");
-        return -1;
+        goto out;
     }
     if (status == 0) {
        snmp_log (LOG_ERR, "nothing to read\n");
-       return -1;
+       goto out;
     }
     for (nlmp = (struct nlmsghdr *)buf; status > sizeof(*nlmp); ){
 
@@ -561,12 +580,12 @@ netsnmp_access_ipaddress_extra_prefix_info(int index, u_long *preferedlt,
 
         if (req_len < 0 || len > status) {
             snmp_log (LOG_ERR, "invalid netlink message\n");
-            return -1;
+            goto out;
         }
 
         if (!NLMSG_OK (nlmp, status)) {
             snmp_log (LOG_ERR, "invalid NLMSG message\n");
-            return -1;
+            goto out;
         }
         rtmp = (struct ifaddrmsg *)NLMSG_DATA(nlmp);
         rtatp = (struct rtattr *)IFA_RTA(rtmp);
@@ -594,9 +613,11 @@ netsnmp_access_ipaddress_extra_prefix_info(int index, u_long *preferedlt,
         status -= NLMSG_ALIGN(len);
         nlmp = (struct nlmsghdr*)((char*)nlmp + NLMSG_ALIGN(len));
     }
-    close(sd);
-    return 0;
-}
-#endif
-#endif
+    ret = 0;
 
+out:
+    close(sd);
+    return ret;
+}
+#endif /* HAVE_LINUX_RTNETLINK_H */
+#endif /* defined(NETSNMP_ENABLE_IPV6) */

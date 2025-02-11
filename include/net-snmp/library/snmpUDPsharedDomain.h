@@ -8,14 +8,14 @@
 #ifndef SNMPUDPsharedBASE_H
 #define SNMPUDPsharedBASE_H
 
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 
-config_require(UDP)
+config_require(UDP);
 
 #include <net-snmp/library/snmpUDPBaseDomain.h>
 #include <net-snmp/library/snmpUDPIPv4BaseDomain.h>
@@ -33,13 +33,13 @@ extern          "C" {
      */
     void            netsnmp_udpshared_ctor(void);
 
-    netsnmp_transport *netsnmp_udpshared_transport(const struct sockaddr_in *addr,
+    netsnmp_transport *netsnmp_udpshared_transport(const struct netsnmp_ep *ep,
                                                    int local);
 
     netsnmp_transport *
-    netsnmp_udpshared_transport_with_source(const struct sockaddr_in *addr,
+    netsnmp_udpshared_transport_with_source(const struct netsnmp_ep *ep,
                                             int local,
-                                            const struct sockaddr_in *src_addr);
+                                            const struct netsnmp_ep *src_addr);
 
 #ifdef __cplusplus
 }

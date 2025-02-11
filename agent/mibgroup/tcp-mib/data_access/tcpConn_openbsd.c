@@ -13,26 +13,26 @@
 
 #include "mibII/mibII_common.h"
 
-#if HAVE_NETINET_TCP_H
+#ifdef HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
 #endif
-#if HAVE_NETINET_TCP_TIMER_H
+#ifdef HAVE_NETINET_TCP_TIMER_H
 #include <netinet/tcp_timer.h>
 #endif
-#if HAVE_NETINET_TCPIP_H
+#ifdef HAVE_NETINET_TCPIP_H
 #include <netinet/tcpip.h>
 #endif
-#if HAVE_NETINET_TCP_VAR_H
+#ifdef HAVE_NETINET_TCP_VAR_H
 #include <netinet/tcp_var.h>
 #endif
 
-#if HAVE_KVM_GETFILES
+#ifdef HAVE_KVM_GETFILES
 #if defined(HAVE_KVM_GETFILE2) || !defined(openbsd5)
 #undef HAVE_KVM_GETFILES
 #endif
 #endif
 
-#if HAVE_KVM_GETFILES
+#ifdef HAVE_KVM_GETFILES
 #include <kvm.h>
 #include <sys/sysctl.h>
 #define _KERNEL /* for DTYPE_SOCKET */
@@ -218,8 +218,8 @@ static int
 _load(netsnmp_container *container, u_int load_flags)
 {
     struct inpcbtable table;
-    struct inpcb   *head, *next, *prev;
-    struct inpcb   inpcb;
+    struct inpcb   *next, *prev;
+    struct inpcb   inpcb, previnpcb;
     struct tcpcb   tcpcb;
     int      StateMap[] = { 1, 2, 3, 4, 5, 8, 6, 10, 9, 7, 11 };
     netsnmp_tcpconn_entry  *entry;
@@ -234,21 +234,28 @@ _load(netsnmp_container *container, u_int load_flags)
 	return -1;
     }
 
-    prev = (struct inpcb *)&CIRCLEQ_FIRST(&table.inpt_queue);
+    next = (struct inpcb *)&TAILQ_FIRST(&table.inpt_queue);
     prev = NULL;
-    head = next = CIRCLEQ_FIRST(&table.inpt_queue);
 
     while (next) {
 	if (!NETSNMP_KLOOKUP(next, (char *)&inpcb, sizeof(inpcb))) {
 	    DEBUGMSGTL(("tcp-mib/data_access/tcpConn", "klookup inpcb failed\n"));
 	    break;
 	}
-	if (prev && CIRCLEQ_PREV(&inpcb, inp_queue) != prev) {
-	    snmp_log(LOG_ERR,"tcbtable link error\n");
-	    break;
+	if (prev != NULL) {
+		if (!NETSNMP_KLOOKUP(prev, (char *)&previnpcb,
+		    sizeof(previnpcb))) {
+			DEBUGMSGTL(("tcp-mib/data_access/tcpConn",
+			    "klookup previnpcb failed\n"));
+			break;
+		}
+		if (TAILQ_NEXT(&previnpcb, inp_queue) != next) {
+		    snmp_log(LOG_ERR,"tcbtable link error\n");
+		    break;
+		}
 	}
 	prev = next;
-	next = CIRCLEQ_NEXT(&inpcb, inp_queue);
+	next = TAILQ_NEXT(&inpcb, inp_queue);
 	if (!NETSNMP_KLOOKUP(inpcb.inp_ppcb, (char *)&tcpcb, sizeof(tcpcb))) {
 	    DEBUGMSGTL(("tcp-mib/data_access/tcpConn", "klookup tcpcb failed\n"));
 	    break;
@@ -260,19 +267,19 @@ _load(netsnmp_container *container, u_int load_flags)
 		if (load_flags & NETSNMP_ACCESS_TCPCONN_LOAD_NOLISTEN) {
 		    DEBUGMSGT(("verbose:access:tcpconn:container",
 			       " skipping listen\n"));
-		    goto skip;
+		    continue;
 		}
 	    }
 	    else if (load_flags & NETSNMP_ACCESS_TCPCONN_LOAD_ONLYLISTEN) {
 		DEBUGMSGT(("verbose:access:tcpconn:container",
 			    " skipping non-listen\n"));
-		goto skip;
+		continue;
 	    }
 	}
 
 #if !defined(NETSNMP_ENABLE_IPV6)
         if (inpcb.inp_flags & INP_IPV6)
-	    goto skip;
+	    continue;
 #endif
 
         entry = netsnmp_access_tcpconn_entry_create();
@@ -306,9 +313,6 @@ _load(netsnmp_container *container, u_int load_flags)
          */
         entry->arbitrary_index = CONTAINER_SIZE(container) + 1;
         CONTAINER_INSERT(container, entry);
-skip:
-	if (head == next)
-	    break;
     }
 
     if(rc<0)

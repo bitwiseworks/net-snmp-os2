@@ -66,7 +66,7 @@ INSTALLBINPROGS	= snmpget$(EXEEXT) 			\
 		snmpdelta$(EXEEXT) 			\
 		snmptest$(EXEEXT)			\
 		snmpdf$(EXEEXT) 			\
-		snmpps$(EXEEXT) 			\
+		snmpps$(EXEEXT)				\
 		$(SNMPPINGINSTALLBINPROG)               \
 		$(AGENTXTRAP)				\
 		$(SNMPVACMINSTALLBINPROG)	        \
@@ -149,8 +149,13 @@ FTOBJS=$(LIBTRAPD_FTS) \
 
 all: standardall
 
-OTHERINSTALL=snmpinforminstall snmptopinstall snmptrapdperlinstall
-OTHERUNINSTALL=snmpinformuninstall snmptopuninstall snmptrapdperluninstall
+OTHERINSTALL_LIBCURSES_TRUE=snmptopinstall
+OTHERUNINSTALL_LIBCURSES_TRUE=snmptopuninstall
+
+OTHERINSTALL=snmpinforminstall snmptrapdperlinstall		\
+	$(OTHERINSTALL_LIBCURSES_@HAVE_LIBCURSES@)
+OTHERUNINSTALL=snmpinformuninstall snmptrapdperluninstall	\
+	$(OTHERUNINSTALL_LIBCURSES_@HAVE_LIBCURSES@)
 
 #
 # build rules
@@ -226,11 +231,11 @@ snmpps$(EXEEXT):    snmpps.$(OSUFFIX) $(USELIBS)
 snmpping$(EXEEXT):    snmpping.$(OSUFFIX) $(USELIBS)
 	$(LINK) ${CFLAGS} -o $@ snmpping.$(OSUFFIX) ${LDFLAGS} ${LIBS} -lm
 
-snmppcap$(EXEEXT):    snmppcap.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmppcap.$(OSUFFIX) ${LDFLAGS} ${LIBS} -lpcap
+snmppcap$(EXEEXT):    snmppcap.$(OSUFFIX) $(USEAGENTLIBS)
+	$(LINK) ${CFLAGS} -o $@ snmppcap.$(OSUFFIX) ${LDFLAGS} ${USEAGENTLIBS} ${LIBS} -lpcap
 
 libnetsnmptrapd.$(LIB_EXTENSION)$(LIB_VERSION): $(LLIBTRAPD_OBJS)
-	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LIB_LD_LIBS) -shortname netstr
+	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(MYSQL_LIBS) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LDFLAGS) -shortname netstr
 	$(RANLIB) $@
 
 snmpinforminstall:

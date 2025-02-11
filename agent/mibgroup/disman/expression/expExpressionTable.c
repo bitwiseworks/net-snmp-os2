@@ -22,10 +22,10 @@
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -46,9 +46,9 @@
 #include "expObjectTable.h"
 #include "expValueTable.h"
 
-netsnmp_feature_require(tdomain_support)
+netsnmp_feature_require(tdomain_support);
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*

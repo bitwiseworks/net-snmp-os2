@@ -47,17 +47,17 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(tcpConnectionTable_external_access, libnetsnmpmibs)
+netsnmp_feature_child_of(tcpConnectionTable_external_access, libnetsnmpmibs);
 
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(check_all_requests_error);
 
 
-netsnmp_feature_child_of(tcpConnectionTable_container_size, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_registration_set, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_registration_get, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_container_get, tcpConnectionTable_external_access)
+netsnmp_feature_child_of(tcpConnectionTable_container_size, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_registration_set, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_registration_get, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_container_get, tcpConnectionTable_external_access);
 
 /**********************************************************************
  **********************************************************************
@@ -995,7 +995,7 @@ _mfd_tcpConnectionTable_get_values(netsnmp_mib_handler *handler,
 
         /*
          * if the buffer wasn't used previously for the old data (i.e. it
-         * was allcoated memory)  and the get routine replaced the pointer,
+         * was allocated memory)  and the get routine replaced the pointer,
          * we need to free the previous pointer.
          */
         if (old_string && (old_string != requests->requestvb->buf) &&

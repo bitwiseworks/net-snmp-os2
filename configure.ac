@@ -15,20 +15,20 @@
 #
 # Process this file with autoconf to produce a configure script.
 #
-AC_INIT([Net-SNMP], [5.8], [net-snmp-coders@lists.sourceforge.net])
-AC_PREREQ([2.63])
+AC_INIT([Net-SNMP],[5.9.4.pre2],[net-snmp-coders@lists.sourceforge.net])
+AC_PREREQ([2.71])
 AC_CONFIG_SRCDIR([agent/snmpd.c])
 AC_REVISION([$Revision$])
 
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_HEADER(include/net-snmp/net-snmp-config.h)
+AC_CONFIG_HEADERS([include/net-snmp/net-snmp-config.h])
 
 AC_MSG_CACHE_INIT()
 
 #
 # save the configure arguments
 #
-AC_DEFINE_UNQUOTED(NETSNMP_CONFIGURE_OPTIONS,"$ac_configure_args",
+AC_DEFINE_UNQUOTED(NETSNMP_CONFIGURE_OPTIONS,"${NETSNMP_CONFIGURE_OPTIONS-$ac_configure_args}",
   [configure options specified])
 CONFIGURE_OPTIONS="\"$ac_configure_args\""
 AC_SUBST(CONFIGURE_OPTIONS)
@@ -118,6 +118,7 @@ AC_CONFIG_FILES([net-snmp-config:net-snmp-config.in],
 		[chmod +x net-snmp-config])
 AC_CONFIG_FILES([net-snmp-create-v3-user:net-snmp-create-v3-user.in],
 		[chmod +x net-snmp-create-v3-user])
+AC_CONFIG_FILES([netsnmp.pc:netsnmp.pc.in netsnmp-agent.pc:netsnmp-agent.pc.in])
 AC_CONFIG_FILES([dist/generation-scripts/gen-variables:dist/generation-scripts/gen-variables.in])
 AC_CONFIG_FILES([local/snmpconf])
 

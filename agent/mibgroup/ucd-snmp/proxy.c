@@ -17,8 +17,11 @@
 #include <net-snmp/net-snmp-features.h>
 
 #include <sys/types.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -29,8 +32,8 @@
 
 #include "proxy.h"
 
-netsnmp_feature_require(handler_mark_requests_as_delegated)
-netsnmp_feature_require(request_set_error_idx)
+netsnmp_feature_require(handler_mark_requests_as_delegated);
+netsnmp_feature_require(request_set_error_idx);
 
 static struct simple_proxy *proxies = NULL;
 
@@ -117,10 +120,8 @@ proxy_parse_config(const char *token, char *line)
         argv[argn] = strdup(buff);
         if (!argv[argn]) {
             config_perror("could not allocate memory for argv[n]");
-            while(argn--)
-                SNMP_FREE(argv[argn]);
             SNMP_FREE(buff);
-            return;
+            goto out;
         }
 	argn++;
     }
@@ -143,19 +144,13 @@ proxy_parse_config(const char *token, char *line)
     
     if (arg < 0) {
         config_perror("failed to parse proxy args");
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);
-        return;
+        goto out;
     }
     DEBUGMSGTL(("proxy_config", "done parsing args\n"));
 
     if (arg >= argn) {
         config_perror("missing base oid");
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);   
-        return;
+        goto out;
     }
 
     /*
@@ -170,6 +165,7 @@ proxy_parse_config(const char *token, char *line)
      * so this isn't needed. 
      */
     ss = snmp_open(&session);
+    SNMP_FREE(session.community);
     /*
      * usm_set_reportErrorOnUnknownID(1); 
      */
@@ -178,10 +174,7 @@ proxy_parse_config(const char *token, char *line)
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpget", &session);
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);
-        return;
+        goto out;
     }
 
     newp = (struct simple_proxy *) calloc(1, sizeof(struct simple_proxy));
@@ -194,9 +187,7 @@ proxy_parse_config(const char *token, char *line)
         config_perror("illegal proxy oid specified\n");
         /*deallocate the memory previously allocated*/
         SNMP_FREE(newp);
-        while(argn--)
-            SNMP_FREE(argv[argn]);
-        return;
+        goto out;
     }
 
     if (arg < argn) {
@@ -206,10 +197,7 @@ proxy_parse_config(const char *token, char *line)
             snmp_perror("proxy");
             config_perror("illegal variable name specified (base oid)\n");
             SNMP_FREE(newp);
-            /* Free the memory allocated */
-            while(argn--)
-                SNMP_FREE(argv[argn]);
-            return;
+            goto out;
         }
     }
     if ( context_string )
@@ -256,6 +244,8 @@ proxy_parse_config(const char *token, char *line)
         reg->contextName = strdup(context_string);
 
     netsnmp_register_handler(reg);
+
+out:
     /* Free the memory allocated */
     while(argn--)
         SNMP_FREE(argv[argn]);
@@ -277,7 +267,6 @@ proxy_free_config(void)
         unregister_mib_context(rm->name, rm->name_len,
                                DEFAULT_MIB_PRIORITY, 0, 0,
                                rm->context);
-        SNMP_FREE(rm->variables);
         SNMP_FREE(rm->context);
         snmp_close(rm->sess);
         SNMP_FREE(rm);
@@ -336,10 +325,10 @@ proxy_fill_in_session(netsnmp_mib_handler *handler,
             *configured = strdup("-c");
             DEBUGMSGTL(("proxy", "pdu has community string\n"));
             session->community_len = reqinfo->asp->pdu->community_len;
-            session->community = malloc(session->community_len + 1);
-            sprintf((char *)session->community, "%.*s",
-                    (int) session->community_len,
-                    (const char *)reqinfo->asp->pdu->community);
+            if (asprintf((char **)&session->community, "%.*s",
+                         (int)session->community_len,
+                         (const char *)reqinfo->asp->pdu->community) < 0)
+                session->community = NULL;
         }
     }
 #endif
@@ -366,7 +355,7 @@ proxy_free_filled_in_session_args(netsnmp_session *session, void **configured)
         session->community_len = 0;
     }
 
-    free((u_char *)(*configured));
+    free(*configured);
     *configured = NULL;
 }
 
@@ -460,7 +449,7 @@ proxy_handler(netsnmp_mib_handler *handler,
         if (sp->base_len &&
             reqinfo->mode == MODE_GETNEXT &&
             (snmp_oid_compare(ourname, ourlength,
-                              sp->base, sp->base_len) < 0)) {
+                              sp->name, sp->name_len) < 0)) {
             DEBUGMSGTL(( "proxy", "request is out of registered range\n"));
             /*
              * Create GETNEXT request with an OID so the
@@ -569,6 +558,17 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
     }
 
     switch (operation) {
+    case NETSNMP_CALLBACK_OP_RESEND:
+         /*
+         * Issue#147: Net-SNMP not responding when proxy requests times out
+         *
+         * When snmp_api issue a resend, the default case was hit and the 
+         * delagated cache was freed.
+         * As a result, the NETSNMP_CALLBACK_OP_TIMED_OUT never came in.
+         */
+        DEBUGMSGTL(("proxy", "pdu has been resent for request = %8p\n", requests));
+        return SNMP_ERR_NOERROR;
+
     case NETSNMP_CALLBACK_OP_TIMED_OUT:
         /*
          * WWWXXX: don't leave requests delayed if operation is
@@ -698,8 +698,6 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
                                  "proxy OID return length too long.\n");
                         netsnmp_set_request_error(cache->reqinfo, requests,
                                                   SNMP_ERR_GENERR);
-                        if (pdu)
-                            snmp_free_pdu(pdu);
                         netsnmp_free_delegated_cache(cache);
                         return 1;
                     }
@@ -723,8 +721,6 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
              * ack, this is bad.  The # of varbinds don't match and
              * there is no way to fix the problem 
              */
-            if (pdu)
-                snmp_free_pdu(pdu);
             snmp_log(LOG_ERR,
                      "response to proxy request illegal.  We're screwed.\n");
             netsnmp_set_request_error(cache->reqinfo, requests,
@@ -735,11 +731,6 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
         if (cache->reqinfo->mode == MODE_GETBULK)
             netsnmp_bulk_to_next_fix_requests(requests);
         
-        /*
-         * free the response 
-         */
-        if (pdu && 0)
-            snmp_free_pdu(pdu);
 	break;
 
     default:

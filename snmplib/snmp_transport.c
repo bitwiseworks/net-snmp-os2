@@ -11,24 +11,21 @@
 #include <net-snmp/library/snmp_transport.h>
 
 #include <stdio.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include <sys/types.h>
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 
 #include <ctype.h>
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/output_api.h>
@@ -80,12 +77,12 @@
 #include <net-snmp/library/snmp_service.h>
 #include <net-snmp/library/read_config.h>
 
-netsnmp_feature_child_of(transport_all, libnetsnmp)
+netsnmp_feature_child_of(transport_all, libnetsnmp);
 
-netsnmp_feature_child_of(tdomain_support, transport_all)
-netsnmp_feature_child_of(tdomain_transport_oid, transport_all)
-netsnmp_feature_child_of(sockaddr_size, transport_all)
-netsnmp_feature_child_of(transport_cache, transport_all)
+netsnmp_feature_child_of(tdomain_support, transport_all);
+netsnmp_feature_child_of(tdomain_transport_oid, transport_all);
+netsnmp_feature_child_of(sockaddr_size, transport_all);
+netsnmp_feature_child_of(transport_cache, transport_all);
 
 /*
  * Our list of supported transport domains.  
@@ -132,7 +129,7 @@ init_snmp_transport(void)
 #ifndef NETSNMP_FEATURE_REMOVE_FILTER_SOURCE
     register_app_config_handler("sourceFilterType",
                                 netsnmp_transport_parse_filterType,
-                                NULL, "none|whitelist|blacklist");
+                                NULL, "none|acceptlist|blocklist");
     register_app_config_handler("sourceFilterAddress",
                                 netsnmp_transport_parse_filter,
                                 netsnmp_transport_filter_cleanup,
@@ -341,11 +338,17 @@ void
 netsnmp_transport_parse_filterType(const char *word, char *cptr)
 {
     int type = 42;
-    if (strcmp(cptr,"whitelist") == 0)
+    if (strcmp(cptr,"acceptlist") == 0)
         type = 1;
-    else if (strcmp(cptr,"blacklist") == 0)
+    else if (strcmp(cptr,"whitelist") == 0) {
+	netsnmp_config_warn("Deprecated configuration term found -- Please use 'acceptlist' instead");
+        type = 1;
+    } else if (strcmp(cptr,"blocklist") == 0)
         type = -1;
-    else if (strcmp(cptr,"none") == 0)
+    else if (strcmp(cptr,"blacklist") == 0) {
+	netsnmp_config_warn("Deprecated configuration term found -- Please use 'blocklist' instead");
+        type = -1;
+    } else if (strcmp(cptr,"none") == 0)
         type = 0;
     else
         netsnmp_config_error("unknown source filter type: %s", cptr);
@@ -565,7 +568,7 @@ netsnmp_tdomain_register(netsnmp_tdomain *n)
 
 
 
-netsnmp_feature_child_of(tdomain_unregister, netsnmp_unused)
+netsnmp_feature_child_of(tdomain_unregister, netsnmp_unused);
 #ifndef NETSNMP_FEATURE_REMOVE_TDOMAIN_UNREGISTER
 int
 netsnmp_tdomain_unregister(netsnmp_tdomain *n)
@@ -638,7 +641,7 @@ netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec)
     const char * const *spec = NULL;
     int                 any_found = 0;
     char buf[SNMP_MAXPATH];
-    char **lspec = NULL;
+    const char **lspec = NULL;
     char *tokenized_domain = NULL;
 
     application = tspec->application;
@@ -752,7 +755,7 @@ netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec)
                 lspec[0] = strtok_r(tokenized_domain, ",", &ptr);
                 while ((lspec[commas++] = strtok_r(NULL, ",", &ptr)))
                     ;
-                spec = (const char * const *)lspec;
+                spec = lspec;
             }
         } else {
             spec = netsnmp_lookup_default_domains(application);
@@ -876,6 +879,11 @@ netsnmp_tdomain_transport(const char *str, int local,
 }
 
 #ifndef NETSNMP_FEATURE_REMOVE_TDOMAIN_TRANSPORT_OID
+/*
+ * The format of @dom and @o follows the TDomain and TAddress textual
+ * conventions from RFC 2579. For the actual TAddress format definitions,
+ * see e.g. SnmpUDPAddress in RFC 1906.
+ */
 netsnmp_transport *
 netsnmp_tdomain_transport_oid(const oid * dom,
                               size_t dom_len,
@@ -974,7 +982,8 @@ netsnmp_transport_config_compare(netsnmp_transport_config *left,
 }
 
 netsnmp_transport_config *
-netsnmp_transport_create_config(char *key, char *value) {
+netsnmp_transport_create_config(const char *key, const char *value)
+{
     netsnmp_transport_config *entry =
         SNMP_MALLOC_TYPEDEF(netsnmp_transport_config);
     entry->key = strdup(key);
@@ -1279,7 +1288,7 @@ netsnmp_transport_cache_get(int af, int type, int local,
 
 #define USE_CACHE 1
 
-#if USE_CACHE
+#ifdef USE_CACHE
     /** check for existing transport */
     tc = _tc_find(af, type, local, bind_addr);
     if (tc) {
@@ -1298,7 +1307,7 @@ netsnmp_transport_cache_get(int af, int type, int local,
     }
     DEBUGMSGTL(("transport:cache:get", "new transport %p\n", t));
 
-#if USE_CACHE
+#ifdef USE_CACHE
     /** create transport cache for new transport */
     tc = _tc_add(af, type, local, bind_addr, t);
     if (NULL == tc) {

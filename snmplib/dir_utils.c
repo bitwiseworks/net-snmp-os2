@@ -14,26 +14,26 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #   include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #   include <unistd.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #   include <string.h>
 #else
 #  include <strings.h>
 #endif
 
 #include <sys/types.h>
-#if HAVE_LIMITS_H
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#if HAVE_SYS_STAT_H
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#if HAVE_DIRENT_H
+#ifdef HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
@@ -43,19 +43,15 @@
 
 #include <errno.h>
 
-#if HAVE_DMALLOC_H
-#  include <dmalloc.h>
-#endif
-
 #include <net-snmp/types.h>
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/file_utils.h>
 #include <net-snmp/library/dir_utils.h>
 
-netsnmp_feature_child_of(container_directory, container_types)
+netsnmp_feature_child_of(container_directory, container_types);
 #ifdef NETSNMP_FEATURE_REQUIRE_CONTAINER_DIRECTORY
-netsnmp_feature_require(file_utils)
-netsnmp_feature_require(container_free_all)
+netsnmp_feature_require(file_utils);
+netsnmp_feature_require(container_free_all);
 #endif /* NETSNMP_FEATURE_REQUIRE_CONTAINER_DIRECTORY */
 
 #ifndef NETSNMP_FEATURE_REMOVE_CONTAINER_DIRECTORY
@@ -140,8 +136,7 @@ netsnmp_directory_container_read_some(netsnmp_container *user_container,
 
     /** iterate over dir */
     while ((file = readdir(dir))) {
-
-        if ((file->d_name == NULL) || (file->d_name[0] == 0))
+        if (file->d_name[0] == 0)
             continue;
 
         /** skip '.' and '..' */

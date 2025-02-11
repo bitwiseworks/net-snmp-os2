@@ -7,25 +7,21 @@
 #include <ctype.h>
 #include <errno.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <atm.h>
-
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
-#endif
 
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
@@ -378,7 +374,6 @@ netsnmp_aal5pvc_ctor(void)
     aal5pvcDomain.prefix[0] = "aal5pvc";
     aal5pvcDomain.prefix[1] = "pvc";
 
-    aal5pvcDomain.f_create_from_tstring     = NULL;
     aal5pvcDomain.f_create_from_tstring_new = netsnmp_aal5pvc_create_tstring;
     aal5pvcDomain.f_create_from_ostring     = netsnmp_aal5pvc_create_ostring;
 

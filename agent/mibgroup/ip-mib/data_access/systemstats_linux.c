@@ -14,6 +14,7 @@
 #include "systemstats.h"
 #include "systemstats_private.h"
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -123,7 +124,7 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
     /*
      * skip header, but make sure it's the length we expect...
      */
-    fgets(line, sizeof(line), devin);
+    NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), devin));
     len = strlen(line);
     if (224 != len) {
         fclose(devin);
@@ -142,7 +143,7 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
     if (start) {
 
         len = strlen(line);
-        if (line[len - 1] == '\n')
+        if (len && line[len - 1] == '\n')
             line[len - 1] = '\0';
 
         while (*start && *start == ' ')
@@ -163,8 +164,6 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
         entry = netsnmp_access_systemstats_entry_create(1, 0,
                     "ipSystemStatsTable.ipv4");
         if(NULL == entry) {
-            netsnmp_access_systemstats_container_free(container,
-                                                      NETSNMP_ACCESS_SYSTEMSTATS_FREE_NOFLAGS);
             return -3;
         }
 
@@ -384,7 +383,7 @@ _systemstats_v6_load_file(netsnmp_systemstats_entry *entry, FILE *devin)
             break;
 
         len = strlen(line);
-        if (line[len - 1] == '\n')
+        if (len && line[len - 1] == '\n')
             line[len - 1] = '\0';
 
         if (('I' != line[0]) || ('6' != line[2]))
@@ -560,10 +559,12 @@ _systemstats_v6_load_systemstats(netsnmp_container* container, u_int load_flags)
      * try to open file. If we can't, that's ok - maybe the module hasn't
      * been loaded yet.
      */
-    if (!(devin = fopen(filename, "r"))) {
+    devin = fopen(filename, "r");
+    if (!devin) {
         DEBUGMSGTL(("access:systemstats",
                 "Failed to load Systemstats Table (linux1), cannot open %s\n",
                 filename));
+        netsnmp_access_systemstats_entry_free(entry);
         return 0;
     }
     

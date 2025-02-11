@@ -20,7 +20,7 @@
 
 #include <net-snmp/agent/table_array.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -30,12 +30,12 @@
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/snmp_assert.h>
 
-netsnmp_feature_child_of(table_array_all, mib_helpers)
+netsnmp_feature_child_of(table_array_all, mib_helpers);
 
-netsnmp_feature_child_of(table_array_register,table_array_all)
-netsnmp_feature_child_of(table_array_find_table_array_handler,table_array_all)
-netsnmp_feature_child_of(table_array_extract_array_context,table_array_all)
-netsnmp_feature_child_of(table_array_check_row_status,table_array_all)
+netsnmp_feature_child_of(table_array_register,table_array_all);
+netsnmp_feature_child_of(table_array_find_table_array_handler,table_array_all);
+netsnmp_feature_child_of(table_array_extract_array_context,table_array_all);
+netsnmp_feature_child_of(table_array_check_row_status,table_array_all);
 
 #ifndef NETSNMP_FEATURE_REMOVE_TABLE_CONTAINER
 

@@ -22,20 +22,23 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #include <sys/types.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -45,25 +48,24 @@
 #include <netinet/in.h>
 #endif
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
-#endif
+#include "memcheck.h"
 
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
 #include <net-snmp/utilities.h>
 
-netsnmp_feature_child_of(usm_support, libnetsnmp)
-netsnmp_feature_child_of(usm_scapi, usm_support)
+netsnmp_feature_child_of(usm_support, libnetsnmp);
+netsnmp_feature_child_of(usm_scapi, usm_support);
 
 #ifndef NETSNMP_FEATURE_REMOVE_USM_SCAPI
 
 #ifdef NETSNMP_USE_INTERNAL_MD5
 #include <net-snmp/library/md5.h>
 #endif
+#include <net-snmp/library/openssl_config.h>
 #include <net-snmp/library/snmp_api.h>
 #include <net-snmp/library/callback.h>
 #include <net-snmp/library/snmp_secmod.h>
@@ -112,11 +114,12 @@ netsnmp_feature_child_of(usm_scapi, usm_support)
 
 #ifdef QUITFUN
 #undef QUITFUN
-#define QUITFUN(e, l)					\
+#define QUITFUN(e, l) do {                              \
 	if (e != SNMPERR_SUCCESS) {			\
 		rval = SNMPERR_SC_GENERAL_FAILURE;	\
 		goto l ;				\
-	}
+        }                                               \
+    } while (0)
 #endif
 
 #ifdef NETSNMP_USE_INTERNAL_CRYPTO
@@ -129,7 +132,7 @@ int MD5_hmac(const u_char * data, size_t len, u_char * mac, size_t maclen,
              const u_char * secret, size_t secretlen);
 #endif
 
-static netsnmp_auth_alg_info _auth_alg_info[] = {
+static const netsnmp_auth_alg_info _auth_alg_info[] = {
     { NETSNMP_USMAUTH_NOAUTH, "usmNoAuthProtocol", usmNoAuthProtocol,
       OID_LENGTH(usmNoAuthProtocol), 0, 0 },
     { NETSNMP_USMAUTH_HMACSHA1, "usmHMACSHA1AuthProtocol",
@@ -159,7 +162,7 @@ static netsnmp_auth_alg_info _auth_alg_info[] = {
     { -1, "unknown", NULL, 0, 0, 0 }
 };
 
-static netsnmp_priv_alg_info _priv_alg_info[] = {
+static const netsnmp_priv_alg_info _priv_alg_info[] = {
     { USM_CREATE_USER_PRIV_NONE, "usmNoPrivProtocol",
       usmNoPrivProtocol, OID_LENGTH(usmNoPrivProtocol), 0, 0, 0 },
 #ifndef NETSNMP_DISABLE_DES
@@ -207,7 +210,7 @@ static netsnmp_priv_alg_info _priv_alg_info[] = {
  *
  * returns a pointer to a netsnmp_priv_alg_info struct
  */
-netsnmp_priv_alg_info *
+const netsnmp_priv_alg_info *
 sc_get_priv_alg_byoid(const oid *privoid, u_int len)
 {
     int i = 0;
@@ -237,7 +240,7 @@ sc_get_priv_alg_byoid(const oid *privoid, u_int len)
  *
  * returns a pointer to a netsnmp_priv_alg_info struct
  */
-netsnmp_priv_alg_info *
+const netsnmp_priv_alg_info *
 sc_get_priv_alg_bytype(u_int type)
 {
     int i = 0;
@@ -258,7 +261,7 @@ sc_get_priv_alg_bytype(u_int type)
  *
  * returns a pointer to a netsnmp_auth_alg_info struct
  */
-netsnmp_auth_alg_info *
+const netsnmp_auth_alg_info *
 sc_find_auth_alg_byoid(const oid *authoid, u_int len)
 {
     int i = 0;
@@ -288,7 +291,7 @@ sc_find_auth_alg_byoid(const oid *authoid, u_int len)
  *
  * returns a pointer to a netsnmp_auth_alg_info struct
  */
-netsnmp_auth_alg_info *
+const netsnmp_auth_alg_info *
 sc_get_auth_alg_byindex(u_int index)
 {
     DEBUGTRACE;
@@ -305,7 +308,7 @@ sc_get_auth_alg_byindex(u_int index)
  *
  * returns a pointer to a netsnmp_auth_alg_info struct
  */
-netsnmp_auth_alg_info *
+const netsnmp_auth_alg_info *
 sc_find_auth_alg_bytype(u_int type)
 {
     int i = 0;
@@ -333,7 +336,7 @@ sc_find_auth_alg_bytype(u_int type)
 int
 sc_get_authtype(const oid * hashtype, u_int hashtype_len)
 {
-    netsnmp_auth_alg_info *aai;
+    const netsnmp_auth_alg_info *aai;
 
     DEBUGTRACE;
 
@@ -347,7 +350,7 @@ sc_get_authtype(const oid * hashtype, u_int hashtype_len)
 int
 sc_get_privtype(const oid * privtype, u_int privtype_len)
 {
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGTRACE;
 
@@ -369,7 +372,7 @@ sc_get_privtype(const oid * privtype, u_int privtype_len)
 int
 sc_get_auth_maclen(int hashtype)
 {
-    netsnmp_auth_alg_info *aai;
+    const netsnmp_auth_alg_info *aai;
 
     DEBUGTRACE;
 
@@ -390,7 +393,7 @@ sc_get_auth_maclen(int hashtype)
 int
 sc_get_proper_auth_length_bytype(int hashtype)
 {
-    netsnmp_auth_alg_info *aai;
+    const netsnmp_auth_alg_info *aai;
 
     DEBUGTRACE;
 
@@ -409,7 +412,7 @@ sc_get_proper_auth_length_bytype(int hashtype)
 oid *
 sc_get_auth_oid(int type, size_t *oid_len)
 {
-    netsnmp_auth_alg_info *ai;
+    const netsnmp_auth_alg_info *ai;
 
     DEBUGTRACE;
 
@@ -431,7 +434,7 @@ sc_get_auth_oid(int type, size_t *oid_len)
 const char*
 sc_get_auth_name(int type)
 {
-    netsnmp_auth_alg_info *ai;
+    const netsnmp_auth_alg_info *ai;
 
     DEBUGTRACE;
 
@@ -450,7 +453,7 @@ sc_get_auth_name(int type)
 oid *
 sc_get_priv_oid(int type, size_t *oid_len)
 {
-    netsnmp_priv_alg_info *ai;
+    const netsnmp_priv_alg_info *ai;
 
     DEBUGTRACE;
 
@@ -483,12 +486,12 @@ sc_get_properlength(const oid * hashtype, u_int hashtype_len)
         sc_get_authtype(hashtype, hashtype_len));
 }
 
-netsnmp_feature_child_of(scapi_get_proper_priv_length, netsnmp_unused)
+netsnmp_feature_child_of(scapi_get_proper_priv_length, netsnmp_unused);
 #ifndef NETSNMP_FEATURE_REMOVE_SCAPI_GET_PROPER_PRIV_LENGTH
 int
 sc_get_proper_priv_length(const oid * privtype, u_int privtype_len)
 {
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGTRACE;
 
@@ -505,7 +508,7 @@ sc_get_proper_priv_length(const oid * privtype, u_int privtype_len)
  *
  * returns a pointer to a netsnmp_priv_alg_info struct
  */
-netsnmp_priv_alg_info *
+const netsnmp_priv_alg_info *
 sc_get_priv_alg_byindex(u_int index)
 {
     DEBUGTRACE;
@@ -520,7 +523,7 @@ sc_get_priv_alg_byindex(u_int index)
 int
 sc_get_proper_priv_length_bytype(int privtype)
 {
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGTRACE;
 
@@ -552,7 +555,7 @@ sc_init(void)
     gettimeofday(&tv, (struct timezone *) 0);
 
     netsnmp_srandom((unsigned)(tv.tv_sec ^ tv.tv_usec));
-#elif NETSNMP_USE_PKCS11
+#elif defined(NETSNMP_USE_PKCS11)
     DEBUGTRACE;
     rval = pkcs_init();
 #else
@@ -592,7 +595,8 @@ sc_random(u_char * buf, size_t * buflen)
 
 #ifdef NETSNMP_USE_OPENSSL
     RAND_bytes(buf, *buflen);   /* will never fail */
-#elif NETSNMP_USE_PKCS11			/* NETSNMP_USE_PKCS11 */
+    MAKE_MEM_DEFINED(buf, *buflen);
+#elif defined(NETSNMP_USE_PKCS11)  /* NETSNMP_USE_PKCS11 */
     pkcs_random(buf, *buflen);
 #else                           /* NETSNMP_USE_INTERNAL_MD5 */
     /*
@@ -786,7 +790,7 @@ sc_generate_keyed_hash(const oid * authtypeOID, size_t authtypeOIDlen,
         *maclen = buf_len;
     memcpy(MAC, buf, *maclen);
 
-#elif NETSNMP_USE_PKCS11                    /* NETSNMP_USE_PKCS11 */
+#elif defined(NETSNMP_USE_PKCS11)            /* NETSNMP_USE_PKCS11 */
 
 #ifndef NETSNMP_DISABLE_MD5
     if (NETSNMP_USMAUTH_HMACMD5 == auth_type) {
@@ -812,7 +816,7 @@ sc_generate_keyed_hash(const oid * authtypeOID, size_t authtypeOIDlen,
         *maclen = buf_len;
     memcpy(MAC, buf, *maclen);
 
-#elif NETSNMP_USE_INTERNAL_CRYPTO
+#elif defined(NETSNMP_USE_INTERNAL_CRYPTO)
     if (*maclen > properlength)
         *maclen = properlength;
 #ifndef NETSNMP_DISABLE_MD5
@@ -967,7 +971,8 @@ sc_hash_type(int auth_type, const u_char * buf, size_t buf_len, u_char * MAC,
 #endif
     if (!EVP_DigestInit(cptr, hashfn)) {
         /* requested hash function is not available */
-        return SNMPERR_SC_NOT_CONFIGURED;
+        rval = SNMPERR_SC_NOT_CONFIGURED;
+        goto sc_hash_type_quit;
     }
 
 /** pass the data */
@@ -976,6 +981,8 @@ sc_hash_type(int auth_type, const u_char * buf, size_t buf_len, u_char * MAC,
 /** do the final pass */
     EVP_DigestFinal(cptr, MAC, &tmp_len);
     *MAC_len = tmp_len;
+
+sc_hash_type_quit:
 #if defined(HAVE_EVP_MD_CTX_FREE)
     EVP_MD_CTX_free(cptr);
 #elif defined(HAVE_EVP_MD_CTX_DESTROY)
@@ -988,7 +995,7 @@ sc_hash_type(int auth_type, const u_char * buf, size_t buf_len, u_char * MAC,
 #endif
     return (rval);
 
-#elif NETSNMP_USE_INTERNAL_CRYPTO
+#elif defined(NETSNMP_USE_INTERNAL_CRYPTO)
 #ifndef NETSNMP_DISABLE_MD5
     if (NETSNMP_USMAUTH_HMACMD5 == auth_type) {
         if (*MAC_len < MD5_DIGEST_LENGTH)
@@ -1011,7 +1018,7 @@ sc_hash_type(int auth_type, const u_char * buf, size_t buf_len, u_char * MAC,
         return (SNMPERR_GENERR);
     }
     return (rval);
-#elif NETSNMP_USE_PKCS11                  /* NETSNMP_USE_PKCS11 */
+#elif defined(NETSNMP_USE_PKCS11)        /* NETSNMP_USE_PKCS11 */
 
 #ifndef NETSNMP_DISABLE_MD5
     if (NETSNMP_USMAUTH_HMACMD5 == auth_type) {
@@ -1169,7 +1176,7 @@ sc_encrypt(const oid * privtype, size_t privtypelen,
     int             rval = SNMPERR_SUCCESS;
     u_char          pad_block[128];      /* bigger than anything I need */
     u_char          my_iv[128];  /* ditto */
-    netsnmp_priv_alg_info *pai = NULL;
+    const netsnmp_priv_alg_info *pai = NULL;
 #ifndef NETSNMP_DISABLE_DES
     int             pad, plast, pad_size = 0;
 #ifdef OLD_DES
@@ -1251,7 +1258,6 @@ sc_encrypt(const oid * privtype, size_t privtypelen,
 
         QUITFUN(SNMPERR_GENERR, sc_encrypt_quit);
     }
-    pad_size = pai->pad_size;
 
     memset(my_iv, 0, sizeof(my_iv));
 
@@ -1261,6 +1267,8 @@ sc_encrypt(const oid * privtype, size_t privtypelen,
         /*
          * now calculate the padding needed 
          */
+
+        pad_size = pai->pad_size;
         pad = pad_size - (ptlen % pad_size);
         plast = (int) ptlen - (pad_size - pad);
         if (pad == pad_size)
@@ -1363,7 +1371,7 @@ sc_encrypt(const oid * privtype, size_t privtypelen,
 {
     int             rval = SNMPERR_SUCCESS, priv_type
     u_char	    pkcs_des_key[8];
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGTRACE;
 
@@ -1462,7 +1470,7 @@ sc_decrypt(const oid * privtype, size_t privtypelen,
 #endif
     DES_cblock      key_struct;
 #endif
-    netsnmp_priv_alg_info *pai = NULL;
+    const netsnmp_priv_alg_info *pai = NULL;
 
     DEBUGTRACE;
 
@@ -1573,11 +1581,11 @@ sc_decrypt(const oid * privtype, size_t privtypelen,
     memset(my_iv, 0, sizeof(my_iv));
     return rval;
 }				/* USE OPEN_SSL */
-#elif NETSNMP_USE_PKCS11                  /* USE PKCS */
+#elif defined(NETSNMP_USE_PKCS11)        /* USE PKCS */
 {
     int             rval = SNMPERR_SUCCESS;
     u_char	    pkcs_des_key[8];
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGTRACE;
 

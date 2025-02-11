@@ -8,6 +8,7 @@
  * standard Net-SNMP includes 
  */
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/library/openssl_config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/library/snmp_openssl.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
@@ -62,8 +63,8 @@ int
 usmDHGetUserKeyChange(struct usmUser *user, int for_auth_key,
                       u_char **keyobj, size_t *keyobj_len)
 {
-    DH             *dh;
-    const BIGNUM   *pub_key;
+    DH             *dh = NULL;
+    const BIGNUM   *pub_key = NULL;
 
     dh = usmDHGetUserDHptr(user, for_auth_key);
 
@@ -155,15 +156,7 @@ usmDHUserKeyTable_release_data(usmDHUserKeyTable_data * data)
     netsnmp_assert(user->next == (struct usmUser *) -1);
     netsnmp_assert(user->prev == (struct usmUser *) -1);
 
-    /*
-     * TODO:202:r: |-> release memory for the usmDHUserKeyTable data context.
-     */
-    if (user) {
-        SNMP_FREE(user->authKey);
-        SNMP_FREE(user->privKey);
-    }
-
-    free(data);
+    usm_free_user(user);
 }                               /* usmDHUserKeyTable_release_data */
 
 
@@ -203,8 +196,7 @@ usmDHUserKeyTable_indexes_set_tbl_idx(usmDHUserKeyTable_mib_index *
     /*
      * make sure there is enough space for usmUserEngineID data
      */
-    if ((NULL == tbl_idx->usmUserEngineID) ||
-        (tbl_idx->usmUserEngineID_len < (usmUserEngineID_val_ptr_len))) {
+    if (tbl_idx->usmUserEngineID_len < usmUserEngineID_val_ptr_len) {
         snmp_log(LOG_ERR, "not enough space for value\n");
         return MFD_ERROR;
     }
@@ -222,8 +214,7 @@ usmDHUserKeyTable_indexes_set_tbl_idx(usmDHUserKeyTable_mib_index *
     /*
      * make sure there is enough space for usmUserName data
      */
-    if ((NULL == tbl_idx->usmUserName) ||
-        (tbl_idx->usmUserName_len < (usmUserName_val_ptr_len))) {
+    if (tbl_idx->usmUserName_len < usmUserName_val_ptr_len) {
         snmp_log(LOG_ERR, "not enough space for value\n");
         return MFD_ERROR;
     }

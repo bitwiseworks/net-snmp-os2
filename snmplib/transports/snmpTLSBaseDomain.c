@@ -2,30 +2,28 @@
 #include <net-snmp/net-snmp-features.h>
 #include <net-snmp/types.h>
 
-netsnmp_feature_require(cert_util)
+netsnmp_feature_require(cert_util);
 
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
-#endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if HAVE_NETDB_H
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
 #include <errno.h>
 #include <ctype.h>
+#include "../memcheck.h"
 
 /* OpenSSL Includes */
 #include <openssl/bio.h>
@@ -55,6 +53,17 @@ netsnmp_feature_require(cert_util)
 #define LOGANDDIE(msg) do { snmp_log(LOG_ERR, "%s\n", msg); return 0; } while(0)
 
 int openssl_local_index;
+
+#ifndef HAVE_ERR_GET_ERROR_ALL
+/* A backport of the OpenSSL 1.1.1e ERR_get_error_all() function. */
+static unsigned long ERR_get_error_all(const char **file, int *line,
+                                       const char **func,
+                                       const char **data, int *flags)
+{
+    *func = "(?)";
+    return ERR_get_error_line_data(file, line, data, flags);
+}
+#endif
 
 /* this is called during negotiation */
 int verify_callback(int ok, X509_STORE_CTX *ctx) {
@@ -213,8 +222,9 @@ netsnmp_tlsbase_verify_server_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
     
     netsnmp_assert_or_return(ssl != NULL, SNMPERR_GENERR);
     netsnmp_assert_or_return(tlsdata != NULL, SNMPERR_GENERR);
-    
-    if (NULL == (remote_cert = SSL_get_peer_certificate(ssl))) {
+
+    remote_cert = SSL_get_peer_certificate(ssl);
+    if (!remote_cert) {
         /* no peer cert */
         DEBUGMSGTL(("tls_x509:verify",
                     "remote connection provided no certificate (yet)\n"));
@@ -267,11 +277,9 @@ netsnmp_tlsbase_verify_server_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
                                             oname->d.ia5);
 
                         /* convert to lowercase for comparisons */
-                        for (j = 0 ;
-                             *check_name && j < sizeof(buf)-1;
-                             ++check_name, ++j ) {
-                            if (isascii(*check_name))
-                                buf[j] = tolower(0xFF & *check_name);
+                        for (j = 0; *check_name && j < sizeof(buf)-1;
+                             ++check_name, ++j) {
+                            buf[j] = tolower(0xFF & *check_name);
                         }
                         if (j < sizeof(buf))
                             buf[j] = '\0';
@@ -346,7 +354,8 @@ netsnmp_tlsbase_verify_client_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
          above.
        + fingerprint verification happens below.
     */
-    if (NULL == (remote_cert = SSL_get_peer_certificate(ssl))) {
+    remote_cert = SSL_get_peer_certificate(ssl);
+    if (!remote_cert) {
         /* no peer cert */
         DEBUGMSGTL(("tls_x509:verify",
                     "remote connection provided no certificate (yet)\n"));
@@ -441,7 +450,7 @@ _trust_this_cert(SSL_CTX *the_ctx, char *certspec) {
         LOGANDDIE("failed to find requested certificate to trust");
         
     /* Add the certificate to the context */
-    if (netsnmp_cert_trust_ca(the_ctx, trustcert) != SNMPERR_SUCCESS)
+    if (netsnmp_cert_trust(the_ctx, trustcert) != SNMPERR_SUCCESS)
         LOGANDDIE("failed to load trust certificate");
 
     return 1;
@@ -481,7 +490,7 @@ _sslctx_common_setup(SSL_CTX *the_ctx, _netsnmpTLSBaseData *tlsbase) {
                                     NETSNMP_DS_LIB_X509_CRL_FILE);
     if (NULL != crlFile) {
         cert_store = SSL_CTX_get_cert_store(the_ctx);
-        DEBUGMSGTL(("sslctx_client", "loading CRL: %s\n", crlFile));
+        DEBUGMSGTL(("sslctx_common", "loading CRL: %s\n", crlFile));
         if (!cert_store)
             LOGANDDIE("failed to find certificate store");
         if (!(lookup = X509_STORE_add_lookup(cert_store, X509_LOOKUP_file())))
@@ -508,6 +517,7 @@ SSL_CTX *
 sslctx_client_setup(const SSL_METHOD *method, _netsnmpTLSBaseData *tlsbase) {
     netsnmp_cert *id_cert, *peer_cert;
     SSL_CTX      *the_ctx;
+    X509         *ocert;
 
     /***********************************************************************
      * Set up the client context
@@ -517,6 +527,7 @@ sslctx_client_setup(const SSL_METHOD *method, _netsnmpTLSBaseData *tlsbase) {
         snmp_log(LOG_ERR, "ack: %p\n", the_ctx);
         LOGANDDIE("can't create a new context");
     }
+    MAKE_MEM_DEFINED(the_ctx, 256/*sizeof(*the_ctx)*/);
     SSL_CTX_set_read_ahead (the_ctx, 1); /* Required for DTLS */
         
     SSL_CTX_set_verify(the_ctx,
@@ -546,13 +557,24 @@ sslctx_client_setup(const SSL_METHOD *method, _netsnmpTLSBaseData *tlsbase) {
                 id_cert->key->info.filename));
 
     if (SSL_CTX_use_certificate(the_ctx, id_cert->ocert) <= 0)
-        LOGANDDIE("failed to set the certificate to use");
+        LOGANDDIE("failed to set the client certificate to use");
 
     if (SSL_CTX_use_PrivateKey(the_ctx, id_cert->key->okey) <= 0)
-        LOGANDDIE("failed to set the private key to use");
+        LOGANDDIE("failed to set the client private key to use");
 
     if (!SSL_CTX_check_private_key(the_ctx))
-        LOGANDDIE("public and private keys incompatible");
+        LOGANDDIE("client public and private keys incompatible");
+
+    while (id_cert->issuer_cert) {
+        id_cert = id_cert->issuer_cert;
+        if (id_cert->ocert)
+        {
+            ocert = X509_dup(id_cert->ocert);
+            DEBUGMSGTL(("sslctx_client", "adding cert-chain certificate %p", ocert));
+            if (!ocert || !SSL_CTX_add_extra_chain_cert(the_ctx, ocert))
+                LOGANDDIE("failed to add intermediate client certificate");
+        }
+    }
 
     if (tlsbase->their_identity)
         peer_cert = netsnmp_cert_find(NS_CERT_REMOTE_PEER,
@@ -566,11 +588,11 @@ sslctx_client_setup(const SSL_METHOD *method, _netsnmpTLSBaseData *tlsbase) {
                     peer_cert ? peer_cert->info.filename : "none"));
 
         /* Trust the expected certificate */
-        if (netsnmp_cert_trust_ca(the_ctx, peer_cert) != SNMPERR_SUCCESS)
+        if (netsnmp_cert_trust(the_ctx, peer_cert) != SNMPERR_SUCCESS)
             LOGANDDIE ("failed to set verify paths");
     }
 
-    /* trust a certificate (possibly a CA) aspecifically passed in */
+    /* trust a certificate (possibly a CA) specifically passed in */
     if (tlsbase->trust_cert) {
         if (!_trust_this_cert(the_ctx, tlsbase->trust_cert))
             return 0;
@@ -582,6 +604,7 @@ sslctx_client_setup(const SSL_METHOD *method, _netsnmpTLSBaseData *tlsbase) {
 SSL_CTX *
 sslctx_server_setup(const SSL_METHOD *method) {
     netsnmp_cert *id_cert;
+    X509         *ocert;
 
     /***********************************************************************
      * Set up the server context
@@ -589,15 +612,16 @@ sslctx_server_setup(const SSL_METHOD *method) {
     /* setting up for ssl */
     SSL_CTX *the_ctx = SSL_CTX_new(NETSNMP_REMOVE_CONST(SSL_METHOD *, method));
     if (!the_ctx) {
-        LOGANDDIE("can't create a new context");
+        LOGANDDIE("can't create a new server context");
     }
+    MAKE_MEM_DEFINED(the_ctx, 256/*sizeof(*the_ctx)*/);
 
     id_cert = netsnmp_cert_find(NS_CERT_IDENTITY, NS_CERTKEY_DEFAULT, NULL);
     if (!id_cert)
         LOGANDDIE ("error finding server identity keys");
 
     if (!id_cert->key || !id_cert->key->okey)
-        LOGANDDIE("failed to load private key");
+        LOGANDDIE("failed to load server private key");
 
     DEBUGMSGTL(("sslctx_server", "using public key: %s\n",
                 id_cert->info.filename));
@@ -605,13 +629,24 @@ sslctx_server_setup(const SSL_METHOD *method) {
                 id_cert->key->info.filename));
 
     if (SSL_CTX_use_certificate(the_ctx, id_cert->ocert) <= 0)
-        LOGANDDIE("failed to set the certificate to use");
+        LOGANDDIE("failed to set the server certificate to use");
 
     if (SSL_CTX_use_PrivateKey(the_ctx, id_cert->key->okey) <= 0)
-        LOGANDDIE("failed to set the private key to use");
+        LOGANDDIE("failed to set the server private key to use");
 
     if (!SSL_CTX_check_private_key(the_ctx))
-        LOGANDDIE("public and private keys incompatible");
+        LOGANDDIE("server public and private keys incompatible");
+
+    while (id_cert->issuer_cert) {
+        id_cert = id_cert->issuer_cert;
+        if (id_cert->ocert)
+        {
+            ocert = X509_dup(id_cert->ocert);
+            DEBUGMSGTL(("sslctx_server", "adding cert-chain certificate %p", ocert));
+            if (!ocert || !SSL_CTX_add_extra_chain_cert(the_ctx, ocert))
+                LOGANDDIE("failed to add intermediate server certificate");
+        }
+    }
 
     SSL_CTX_set_read_ahead(the_ctx, 1); /* XXX: DTLS only? */
 
@@ -717,7 +752,7 @@ tls_bootstrap(int majorid, int minorid, void *serverarg, void *clientarg) {
 }
 
 int
-tls_get_verify_info_index() {
+tls_get_verify_info_index(void) {
     return openssl_local_index;
 }
 
@@ -941,7 +976,7 @@ int netsnmp_tlsbase_wrapup_recv(netsnmp_tmStateReference *tmStateRef,
     return SNMPERR_SUCCESS;
 }
 
-netsnmp_feature_child_of(_x509_get_error, netsnmp_unused)
+netsnmp_feature_child_of(_x509_get_error, netsnmp_unused);
 #ifndef NETSNMP_FEATURE_REMOVE__X509_GET_ERROR
 const char * _x509_get_error(int x509failvalue, const char *location) {
     static const char *reason = NULL;
@@ -1101,7 +1136,7 @@ const char * _x509_get_error(int x509failvalue, const char *location) {
 #endif /* NETSNMP_FEATURE_REMOVE__X509_GET_ERROR */
 
 void _openssl_log_error(int rc, SSL *con, const char *location) {
-    const char     *reason, *file, *data;
+    const char     *reason, *file, *func, *data;
     unsigned long   numerical_reason;
     int             flags, line;
 
@@ -1167,24 +1202,17 @@ void _openssl_log_error(int rc, SSL *con, const char *location) {
 
     /* other errors */
     while ((numerical_reason =
-            ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        snmp_log(LOG_ERR, " error: #%lu (file %s, line %d)\n",
-                 numerical_reason, file, line);
+            ERR_get_error_all(&file, &line, &func, &data, &flags)) != 0) {
+        snmp_log(LOG_ERR, "%s (file %s, func %s, line %d)\n",
+                 ERR_error_string(numerical_reason, NULL), file, func, line);
 
         /* if we have a text translation: */
         if (data && (flags & ERR_TXT_STRING)) {
             snmp_log(LOG_ERR, "  Textual Error: %s\n", data);
-            /*
-             * per openssl man page: If it has been allocated by
-             * OPENSSL_malloc(), *flags&ERR_TXT_MALLOCED is true.
-             *
-             * arggh... stupid openssl prototype for ERR_get_error_line_data
-             * wants a const char **, but returns something that we might
-             * need to free??
-             */
-            if (flags & ERR_TXT_MALLOCED)
-                OPENSSL_free(NETSNMP_REMOVE_CONST(void *, data));        }
+        }
     }
-    
+    /* clear openssl error ring buffer */
+    ERR_clear_error();
+
     snmp_log(LOG_ERR, "---- End of OpenSSL Errors ----\n");
 }

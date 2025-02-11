@@ -13,7 +13,7 @@
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
-/*
+/**
  * @file snmp_agent.h
  *
  * @addtogroup agent
@@ -25,6 +25,8 @@
 
 #ifndef SNMP_AGENT_H
 #define SNMP_AGENT_H
+
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern          "C" {
@@ -39,6 +41,8 @@ extern          "C" {
 
 #define SNMP_AGENT_FLAGS_NONE                   0x0
 #define SNMP_AGENT_FLAGS_CANCEL_IN_PROGRESS     0x1
+
+    struct timeval;
 
     /*
      * If non-zero, causes the addresses of peers to be logged when receptions

@@ -27,39 +27,39 @@ SOFTWARE.
 ******************************************************************/
 #include <net-snmp/net-snmp-config.h>
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include <sys/types.h>
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
 # endif
 #endif
-#if HAVE_SYS_SELECT_H
+#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 #include <stdio.h>
-#if HAVE_NETDB_H
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
 
@@ -363,6 +363,7 @@ close_session:
     snmp_close(ss);
 
 out:
+    netsnmp_cleanup_session(&session);
     SOCK_CLEANUP;
     return exitval;
 }
@@ -709,7 +710,6 @@ get_table_entries(netsnmp_session * ss)
                              vars->name_length)) {
                             break;
                         }
-                        i = vars->name_length - rootlen + 1;
                         if (localdebug || show_index) {
                             if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, 
                                               NETSNMP_DS_LIB_EXTENDED_INDEX)) {
@@ -753,6 +753,14 @@ get_table_entries(netsnmp_session * ss)
                     if (localdebug && buf) {
                         printf("%s => taken\n", buf);
                     }
+                    if (dp[col]) {
+                        fprintf(stderr, "OID not increasing: %s\n", buf);
+                        running = 0;
+                        vars = NULL;
+                        end_of_table = 1;
+                        exitval = 2;
+                        break;
+                    }
                     out_len = 0;
                     sprint_realloc_value((u_char **)&buf, &buf_len, &out_len, 1,
                                          vars->name, vars->name_length,
@@ -770,8 +778,11 @@ get_table_entries(netsnmp_session * ss)
                         column[col].width = i;
                     }
                 }
-                if (buf)
+                if (buf) {
                     free(buf);
+                    buf = NULL;
+                    buf_len = 0;
+                }
 
                 if (end_of_table) {
                     --entries;
@@ -779,8 +790,7 @@ get_table_entries(netsnmp_session * ss)
                      * not part of this subtree 
                      */
                     if (localdebug) {
-                        printf("End of table: %s\n",
-                               buf ? (char *) buf : "[NIL]");
+                        printf("End of table\n");
                     }
                     snmp_free_pdu(response);
                     running = 0;
@@ -967,6 +977,13 @@ getbulk_table_entries(netsnmp_session * ss)
                             index_width = i;
                     }
                     dp = data + row * fields;
+                    if (dp[col]) {
+                        fprintf(stderr, "OID not increasing: %s\n", buf);
+                        exitval = 2;
+                        end_of_table = 1;
+                        running = 0;
+                        break;
+                    }
                     out_len = 0;
                     sprint_realloc_value((u_char **)&buf, &buf_len, &out_len, 1,
                                          vars->name, vars->name_length,
@@ -988,8 +1005,11 @@ getbulk_table_entries(netsnmp_session * ss)
                     memcpy(name, last_var->name,
                            name_length * sizeof(oid));
                 }
-                if (buf)
+                if (buf) {
                     free(buf);
+                    buf = NULL;
+                    buf_len = 0;
+                }
             } else {
                 /*
                  * error in response, print it 

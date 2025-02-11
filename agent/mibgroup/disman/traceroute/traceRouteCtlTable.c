@@ -22,9 +22,10 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <pthread.h>
 #include <math.h>
+#include <stddef.h>
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 #include "traceRouteCtlTable.h"
@@ -577,10 +578,8 @@ traceRouteProbeHistoryTable_addall(struct traceRouteCtlTable_data *thedata)
 
             p = p->next;
         } while (p != NULL);
-    else {
-        return SNMP_ERR_INCONSISTENTNAME;
-    }
 
+    return SNMP_ERR_INCONSISTENTNAME;
 }
 
 
@@ -4394,8 +4393,8 @@ run_traceRoute_ipv4(struct traceRouteCtlTable_data *item)
     /*
      * Revert to non-privileged user after opening sockets 
      */
-    setgid(getgid());
-    setuid(getuid());
+    NETSNMP_IGNORE_RESULT(setgid(getgid()));
+    NETSNMP_IGNORE_RESULT(setuid(getuid()));
 
     outip->ip_src = from->sin_addr;
 #ifndef IP_HDRINCL
@@ -4981,7 +4980,7 @@ run_traceRoute_ipv6(struct traceRouteCtlTable_data *item)
     icmp_sock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
     socket_errno = errno;
 
-    setuid(getuid());
+    NETSNMP_IGNORE_RESULT(setuid(getuid()));
 
     on = 1;
     seq = tos = 0;
@@ -5003,14 +5002,14 @@ run_traceRoute_ipv6(struct traceRouteCtlTable_data *item)
 
     if (inet_pton(AF_INET6, hostname, &to->sin6_addr) <= 0) {
         hp = gethostbyname2(hostname, AF_INET6);
-        free(hostname);
-        hostname = NULL;
         if (hp != NULL) {
             memmove((caddr_t) & to->sin6_addr, hp->h_addr, 16);
+            free(hostname);
             hostname = strdup((char *) hp->h_name);
         } else {
-            (void) fprintf(stderr,
-                           "traceroute: unknown host %s\n", hostname);
+            fprintf(stderr, "traceroute: unknown host %s\n", hostname);
+            free(hostname);
+            hostname = NULL;
             goto out;
         }
     }
@@ -5778,7 +5777,7 @@ send_probe(struct sockaddr_in *whereto, int seq, int ttl,
 #else
 
     cc = sendto(sndsock, (char *) outip,
-                packlen, 0, whereto, sizeof(*whereto));
+                packlen, 0, (void *)whereto, sizeof(*whereto));
 #endif
     if (cc < 0 || cc != packlen) {
         if (cc < 0)
@@ -5880,6 +5879,10 @@ packet_ok(u_char * buf, int cc, struct sockaddr_in *from,
         struct ip *hip;
         struct udphdr *up;
 
+        if(cc < offsetof(struct icmp, icmp_ip) + sizeof(icp->icmp_ip)) {
+            return (0);
+        }
+
         hip = &icp->icmp_ip;
         hlen = hip->ip_hl << 2;
         up = (struct udphdr *) ((u_char *) hip + hlen);
@@ -5905,6 +5908,9 @@ packet_ok_v6(u_char * buf, int cc, struct sockaddr_in6 *from, int seq,
 {
     struct icmp6_hdr *icp = NULL;
     u_char          type, code;
+
+    if(cc < sizeof(struct icmp6_hdr))
+        return 0;
 
     icp = (struct icmp6_hdr *) buf;
 
@@ -6059,8 +6065,8 @@ freehostinfo(struct hostinfo *hi)
         free(hi->name);
         hi->name = NULL;
     }
-    free((char *) hi->addrs);
-    free((char *) hi);
+    free(hi->addrs);
+    free(hi);
 }
 
 void
